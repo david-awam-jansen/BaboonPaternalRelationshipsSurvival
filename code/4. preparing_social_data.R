@@ -27,16 +27,6 @@ lapply(list.of.packages, require, character.only = T)
 
 ## preparing social dataset
 
-babase <- DBI::dbConnect(
-	RPostgreSQL::PostgreSQL(),
-	host = "localhost",
-	port = 22222,
-	user = "jansen",
-	dbname = "babase",
-	password = "Bab00n3455")
-
-source("./code/social_indexes/biographical-data.R")
-
 ## although some of the data was already downloaded earlier.
 ## See 1. get_data.R
 ## some of it is redone here.
@@ -50,8 +40,6 @@ babase <- DBI::dbConnect(
     user = "Username",  ## This is the babase username
     dbname = "babase",
     password = "Password") ## This is the babase password
-
-
 
 
 # Get local copy of biograph table
