@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#$ -M djansen@nd.edu	                # Email address for job notification
+#$ -m abe		                # Send mail when job begins, ends and aborts
+#$ -q *@@archie                         # Specify queue (This is the archie core)
+#$ -pe smp 48                           # Specify parallel environment and legal core size
+#$ -N bootstrap_13SEP24                 # Specify job name
+
+module load R/4.4.0/gcc	         # Required modules
+
+cd /afs/crc.nd.edu/user/d/djansen/analysis/dad_analysis/who_groomed_bootstrap
+
+Rscript --no-save  ./code/cluster_bootstrap_previous_next_full_models.R

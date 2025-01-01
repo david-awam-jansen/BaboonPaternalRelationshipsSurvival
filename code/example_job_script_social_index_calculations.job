@@ -1,0 +1,9 @@
+#!/bin/bash
+#$ -M djansen@nd.edu	         # Email address for job notification
+#$ -m abe		         # Send mail when job begins, ends and aborts
+#$ -pe smp 48                    # Specify parallel environment and legal core size
+#$ -N social_calc_1MAR24         # Specify job name
+
+module load R/4.2.0	  # Required modules
+
+Rscript --no-save ./code/5.\ get_social_values.R
