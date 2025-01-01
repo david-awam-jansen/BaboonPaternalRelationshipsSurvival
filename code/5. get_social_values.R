@@ -6,8 +6,11 @@
 
 ## The corresponding author of the paper is Elizabeth Archie (earchie@nd.edu).
 
-## The code below was written to calculate the actual SCI values
+## The code below was written to calculate the actual DSI values
 ## It sources the file that has that has the actual code for the calculations.
+## This code was based on social index code in the Ramboseli package.
+## It was addapted a lot to enable the calculation of social index values for juveniles.
+
 ## To get access to the database contact the corresponding author.
 
 ## This code needs a lot of computer power and should be run on a cluster.
