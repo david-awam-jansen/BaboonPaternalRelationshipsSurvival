@@ -41,8 +41,6 @@ vif.mer <- function (fit) {
         rename(VIF = value)
 }
 
-
-## check
 get_focal_days  <- function(focal, focal_grp, start, end) {
     start_date <- ymd(start)
     end_date <- ymd(end)
@@ -303,6 +301,7 @@ check_overlap_plot <- function(focal, focal_partner, start, end) {
 
 ## The next functions where used to get the data for the analysis related to who groomed and the grooming strengths.
 
+## get list of all males and how many days they were present
 get_all_males <- function(focal_grp, start, end) {
     start_date <- ymd(start)
     end_date <- ymd(end)
@@ -316,6 +315,7 @@ get_all_males <- function(focal_grp, start, end) {
 
 }
 
+## Get mean rank of the male
 get_mean_rank <- function(AMales, focal_grp, start, end) {
     start_date <- ymd(start)
     end_date <- ymd(start)
@@ -331,6 +331,8 @@ get_mean_rank <- function(AMales, focal_grp, start, end) {
                   .groups = 'drop')
 }
 
+
+#Get number of fertile feamles (expressed im days)
 get_d_days_rate <- function(AMales, focal_grp, start, end, per_group = TRUE) {
     start <- ymd(start)
     end <- ymd(end)
@@ -357,6 +359,7 @@ get_d_days_rate <- function(AMales, focal_grp, start, end, per_group = TRUE) {
     }
 }
 
+## Get the number of kids a male has in a group
 get_kids <- function(focal, focal_birth, focal_mom, AMales) {
     df <- parents_l %>%
         arrange(zdate) %>%
@@ -425,6 +428,7 @@ get_kids <- function(focal, focal_birth, focal_mom, AMales) {
     bind_cols(previous_kin,next_kin)
 }
 
+## Check for maternal sibbling in group
 get_maternal_sibling <- function(focal_sname, focal_birth, focal_grp, focal_mom, period) {
 
 	df <- parents_l %>%
@@ -481,6 +485,7 @@ get_offspring_years <- function(focal_sname, AMales, focal_grp, start, end, per_
 }
 
 
+## How many potential dads are there
 get_nr_potential_dads <- function(focal_sibling) {
     potential_dads_l %>%
         filter(kid == focal_sibling) %>%
@@ -499,6 +504,7 @@ get_nr_pdads <- function(focal) {
         pull()
 }
 
+## how many males for who groomed analysis
 get_male_present_count <-  function(focal_kid, focal_grp, start, end) {
 
 	start_date <- ymd(start)
@@ -516,6 +522,7 @@ get_male_present_count <-  function(focal_kid, focal_grp, start, end) {
 							pdad_present = sum(!is.na(kid)==TRUE))
 }
 
+## get snames of potential dads
 get_pdad_sname <-  function(focal_kid, focal_grp, start, end) {
 
 	start_date <- ymd(start)
@@ -532,8 +539,7 @@ get_pdad_sname <-  function(focal_kid, focal_grp, start, end) {
 		pull(sname)
 }
 
-
-
+## how many adult males are present
 get_AM_count <- function(focal, focal_grp, start, end, focal_dad) {
     start <- lubridate::ymd(start)
     end <- lubridate::ymd(end)
@@ -562,6 +568,7 @@ get_AM_count <- function(focal, focal_grp, start, end, focal_dad) {
                   , .groups = 'drop')
 }
 
+## how many grooing partners does a focal have
 get_grooming_partners <- function(df) {
     df %>%
         filter(focal_check
@@ -575,6 +582,7 @@ get_grooming_partners <- function(df) {
         pivot_wider(names_from = 'paternal_groom', values_from = 'N')
 }
 
+## gets some dad regarding fathers
 get_some_dad_data <- function(focal, focal_dad, focal_birth) {
     members_l %>%
         filter(date >= focal_birth &
@@ -599,6 +607,7 @@ get_some_dad_data <- function(focal, focal_dad, focal_birth) {
         select(last_date = date, dad_statdate, dad_status, time_to_statdate, rnkdate)
 }
 
+## What is the rank of the dad in next group
 get_next_dad_rank <- function(focal_father, last_rnkdate) {
     ranks_l %>%
         filter(rnktype == 'ADM') %>%
@@ -610,6 +619,7 @@ get_next_dad_rank <- function(focal_father, last_rnkdate) {
 
 }
 
+## what was the rank of the male when he left
 get_male_last_rank <- function(AMales, last_overlap_grp, first_breakup){
 
     ranks_l %>%
