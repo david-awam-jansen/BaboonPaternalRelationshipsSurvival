@@ -14,10 +14,21 @@
 
 ## libraries
 packages <- c(
-    "tidyverse"
+      "broom"
+    , "broom.mixed"
+    , "cowplot"
+    , "extrafont"
+    , "lmerTest"
+    , "MuMIn"
     , "purrr"
-    , "RPostgreSQL"
-)
+    , "showtext"
+    , "survival"
+    , "systemfonts"
+    , "tidyverse")
+
+font_import()  # This may take a while
+loadfonts()    # Load fonts into the current session
+
 
 ## install packages if needed and open libaries
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
@@ -34,6 +45,43 @@ coded_names <- biograph_l %>%
     mutate(ID = paste0(sex, 1:n()))
 
 source('./code/3. functions_for_data_prep.R')
+font_add(family = "Times New Roman", regular = "times.ttf")
+
+# Define the formatting and saving function
+format_and_save_plot <- function(plot, file_name, width = 6, height = 4, dpi = 300, formats = c("png", "tiff", "eps")) {
+    # Load required libraries
+    showtext_opts(dpi = dpi)
+    showtext_auto(enable = TRUE)
+
+
+    # Add formatting to the plot while preserving existing theme elements
+    formatted_plot <- plot +
+        theme(
+            text = element_text(family = "Times New Roman"),
+            plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
+            axis.title = element_text(size = 9),
+            axis.text = element_text(size = 9),
+            plot.tag = element_text(size = 9, family = "Times New Roman", face = "italic"),
+            legend.title = element_text(size = 9),
+            legend.text = element_text(size = 9)
+        )
+
+    # Save the plot in specified formats
+    for (format in formats) {
+        ggsave(
+            filename = paste0(file_name, ".", format),
+            plot = formatted_plot,
+            width = width,
+            height = height,
+            dpi = dpi,
+            device = format
+        )
+    }
+
+    return(formatted_plot)
+}
+
+
 load("./data/data_set_for_dad_analysis_21JUN22.Rdata") ## this can be the older version
 load("./data/datasets_for_paper_1MAR24.Rdata")
 load("./data/Silk_figure_data_1MAR24.Rdata")
@@ -69,13 +117,6 @@ Fig1A_data <- xdata_females_with_social %>%
     select(focal, dad_overlap_years) %>%
     mutate(focal_order = as.numeric(fct_reorder(focal, dad_overlap_years)))
 
-class_Fig1A_data <- Fig1A_data %>%
-    mutate(class = round(dad_overlap_years)) %>%
-    group_by(class) %>%
-    summarise(cases =n(), .groups = 'drop') %>%
-    mutate(class_max = cumsum(cases)) %>%
-    mutate(percentage = round(class_max/max(class_max) * 100,0))
-
 # Replace names in the `focal` column
 Fig1A_data <- replace_names_with_ids(
     data = Fig1A_data,
@@ -84,8 +125,17 @@ Fig1A_data <- replace_names_with_ids(
 )
 
 write_csv(x = Fig1A_data, file = "./data/data_FigA.csv")
+Fig1A_data <- read_csv("./data/data_FigA.csv")
 
-dad_overlap_plot <- ggplot() +
+classes_Fig1A_data <- Fig1A_data %>%
+    mutate(class = round(dad_overlap_years)) %>%
+    group_by(class) %>%
+    summarise(cases =n(), .groups = 'drop') %>%
+    mutate(class_max = cumsum(cases)) %>%
+    mutate(percentage = round(class_max/max(class_max) * 100,0))
+
+
+Fig1A <- ggplot() +
     geom_segment(data = Fig1A_data,
                  aes(x = 0, xend= dad_overlap_years,
                      y=focal_order,
@@ -94,21 +144,30 @@ dad_overlap_plot <- ggplot() +
     labs(x = "Cumulative duration of co-residency (years)",
          y = "Juvenile female subjects") +
     scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
-    scale_y_continuous(breaks= temp_data_overlap_plot$class_max,
-                       labels= paste0(class_Fig1A_data$class_max, " (",
-                                      class_Fig1A_data$percentage, '%)'),
+    scale_y_continuous(breaks= classes_Fig1A_data$class_max,
+                       labels= paste0(classes_Fig1A_data$class_max, " (",
+                                      classes_Fig1A_data$percentage, '%)'),
                        expand = c(0, 0), limits = c(0, NA)) +
-    geom_segment(data = class_Fig1A_data,
+    geom_segment(data = classes_Fig1A_data,
                  aes(x=class, xend = class,
                      y = 0, yend = class_max),
-                 linetype = "dashed", color = "red", size = 1) +
-    geom_segment(data = class_Fig1A_data,
+                 linetype = "dashed", color = "red", size = .2) +
+    geom_segment(data = classes_Fig1A_data,
                  aes(x=0, xend = class,
                      y = class_max, yend = class_max),
-                 linetype = "dashed", color = "red", size =1) +
-    cowplot::theme_cowplot(font_size = 10)
+                 linetype = "dashed", color = "red", size =.2) +
+    cowplot::theme_cowplot(font_size = 6) +
+    theme(plot.margin = margin(t = 7, r = 7, b = 7, l = 7,unit = "pt")) +
+    theme(
+        text = element_text(family = "Times New Roman"),
+        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 11),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size =11),
+        legend.text = element_text(size =11)
+    )
 
-dad_overlap_plot
+format_and_save_plot(Fig1A, "./figures/Fig1A", dpi = 600, height = 6, width = 4, formats = c("jpg"))
 
 ## Fig 1B
 Fig1B_data <- actor_actees_juvAM %>%
@@ -148,12 +207,14 @@ Fig1B_data <- replace_names_with_ids(
 )
 
 write_csv(x = Fig1B_data, file = "./data/data_FigB.csv")
-
-directional_plot <-
-    tibble(juvenile = rep(unique(step1$juvenile), each = 16),
-           age_class = rep(rep(unique(step1$age_class), each = 4), times = 610),
-           paternal_grooms = rep(rep(unique(Fig1B_data$paternal_grooms), each = 2), times = 610*4),
-           dyad_type = rep(unique(Fig1B_data$dyad_type), times = 610 * 4)) %>%
+Fig1B_data <- read_csv(file = "./data/data_FigB.csv")
+Fig1B_plot_data <-
+    tibble(juvenile = rep(unique(Fig1B_data$juvenile), each = 16),
+                          age_class = rep(rep(unique(Fig1B_data$age_class),
+                                              each = 4), times = 610),
+                          paternal_grooms = rep(rep(unique(Fig1B_data$paternal_grooms), each = 2),
+                                                times = 610*4),
+                          dyad_type = rep(unique(Fig1B_data$dyad_type), times = 610 * 4)) %>%
     left_join(Fig1B_data) %>%
     mutate(cases = if_else(is.na(cases), 0L, cases)) %>%
     group_by(juvenile, age_class, paternal_grooms) %>%
@@ -169,17 +230,21 @@ directional_plot <-
            lower.ci.value =
                mean.value - qt(1 - (0.05 / 2), n.value - 1) * se.value,
            upper.ci.value =
-               mean.value + qt(1 - (0.05 / 2), n.value - 1) * se.value) %>%
+               mean.value + qt(1 - (0.05 / 2), n.value - 1) * se.value)
+
+
+Fig1B <- Fig1B_plot_data %>%
     ggplot(aes(x=age_class,
                y=mean.value,
                group = dyad_type,
                fill = dyad_type,
                color = dyad_type)) +
-    geom_point(position=position_dodge(.5), size = 5) +
+    geom_point(position=position_dodge(.5), size = 2) +
     geom_errorbar(aes(ymin=lower.ci.value, ymax=upper.ci.value),
-                  position = position_dodge(.5))	+
+                  position = position_dodge(.5), width = .4)	+
     geom_line(linetype = 'dashed', size = .5, position = position_dodge(.5)) +
-    scale_y_continuous(labels = scales::percent) +
+    scale_x_discrete(expand = expansion(add = c(0.2, 0.2))) +
+    scale_y_continuous(labels = scales::percent, expand = c(0, 0.017)) +
     facet_wrap(. ~ paternal_grooms, ncol = 1) +
     scale_fill_manual(values = c("#2c7bb6", "#abd9e9",
                                  "#d7191c", "#fdae61"),
@@ -193,27 +258,50 @@ directional_plot <-
                                   "Daughter grooms father",
                                   "Any adult male grooms juv. female",
                                   "Juv. female grooms any adult male")) +
-    cowplot::theme_cowplot(font_size = 10) +
+    cowplot::theme_cowplot(font_size = 8) +
     guides(fill = 'none',
-           color = guide_legend(ncol = 2, size = 5)) +
+           color = guide_legend(ncol = 1, size = 5)) +
     labs(x= "Juvenile female age (years)",
-         y = "Proportions of grooming initiated") +
+         y = "Proportions of grooming initiated",
+         color = "") +
     theme(strip.text.x = element_text(size = 8, angle = 0),
           legend.text=element_text(size=rel(0.6)),
           legend.position = "bottom",
           legend.title = element_blank(),
-          plot.margin = margin(t = 5, r = -20, b = 5, l = 5))
+          plot.margin = margin(t = 5, r = 5, b = 5, l = 5)) +
+    theme(
+        text = element_text(family = "Times New Roman"),
+        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 11),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size =11),
+        legend.text = element_text(size =11))
 
-directional_plot
+Fig1B
+format_and_save_plot(Fig1B, "./figures/Fig1B", dpi = 600, height = 6, width = 4, formats = c("jpg"))
 
 ## To create publication ready figures font sizes may have to be adapted
-fig1 <- cowplot::plot_grid(dad_overlap_plot, directional_plot, align = "v", labels = "AUTO", rel_widths = c(.3, .3))
-fig1
+Fig1 <- cowplot::plot_grid(Fig1A, Fig1B, align = "v", labels = "AUTO", rel_widths = c(.3, .3))
+
+# Now save the combined figure
+# For some reason the format_and_save+plot does not work for this combined figure
+ggsave(plot = Fig1, filename = "./figures/Fig1.jpg", width = 8, height = 6, dpi = 600)
+
+
+format_and_save_plot(Fig1, "./figures/Fig1.jpg", dpi = 600, height = 6, width = 8, formats = c("jpg"))
 
 ################################################################################
 ## Table 1
 juvenile_values <- read_csv("./data/juvenile_values.csv") %>%
     mutate(age_class = floor(juvenile_age))
+
+Table1_data %>%
+    select(focal, sname, age_class) %>%
+    distinct()
+    mutate(nr = n()) %>%
+    filter(nr > 2)
+    arrange(focal, sname, age_class)
+
 
 Table1_data <- juvenile_values %>%
     inner_join(biograph_l %>%
@@ -230,13 +318,13 @@ Table1_data <- replace_names_with_ids(
 )
 
 write_csv(Table1_data, "./data/Table1_data.csv")
+Table1_data <- read_csv("./data/Table1_data.csv")
 
 juvenile_model <- Table1_data %>%
     filter(str_detect(paternal_groom, "paternal")) %>%
     lmer(formula = bond_strength ~ juvenile_age + is_dad + (1|juvenile_id)) %>%
-    tidy() %>%
+    broom.mixed::tidy() %>%
     filter(effect == 'fixed')
-
 
 juvenile_model <- juvenile_model %>%
     select(term, estimate, std.error, statistic, df, p.value)
@@ -256,24 +344,25 @@ juvenile_model %>%
                               "\U2191 Juvenile age \U2191 bond strength",
                               "\U2191 bond strength = male is father")) %>%
     mutate(p = format.pval(p, eps = .001, digits = 2)) %>%
-    flextable() %>%
-    colformat_double(j = 2:5,digits = 3, big.mark = "", decimal.mark = ".") %>%
-    colformat_double(j = 6,digits = 3, big.mark = "", decimal.mark = ".") %>%
-    fontsize(size = 9, part = "all") %>%
-    align(align = "left", part = "header") %>%
+    flextable::flextable() %>%
+    flextable::colformat_double(j = 2:5,digits = 3, big.mark = "", decimal.mark = ".") %>%
+    flextable::colformat_double(j = 6,digits = 3, big.mark = "", decimal.mark = ".") %>%
+    flextable::fontsize(size = 9, part = "all") %>%
+    flextable::align(align = "left", part = "header") %>%
     #flextable::rotate(j = 2:5, rotation="btlr",part="header") %>%
-    align(align = "left", part = "all") %>%
-    fontsize(size = 8, part = "all") %>%
-    width(j = 1, width= 1.7) %>%
-    width(j = 2:4, width= .5) %>%
-    width(j = 5, width= .7) %>%
-    width(j = 7, width= 2)
+    flextable::align(align = "left", part = "all") %>%
+    flextable::fontsize(size = 8, part = "all") %>%
+    flextable::width(j = 1, width= 1.7) %>%
+    flextable::width(j = 2:4, width= .5) %>%
+    flextable::width(j = 5, width= .7) %>%
+    flextable::width(j = 7, width= 2)
 
 ################################################################################
 ## Table 2
+## Some of the data in Table2_data will also be used for Fig2
 Table2_data <- xdata_females_with_social %>%
     select(focal, statage, adult_survival_status, cumulative_adversity, dad_overlap_years,
-           jDSI_paternal, jDSI_M, jDSI_Mde)
+           jDSI_paternal, jDSI_M, jDSI_Mde, jDSI_Mtop, jDSI_Mde_top)
 
 Table2_data <- replace_names_with_ids(
     data = Table2_data,
@@ -281,52 +370,38 @@ Table2_data <- replace_names_with_ids(
     columns = c("focal")
 )
 write_csv(Table2_data, "./data/Table2_data.csv")
+Table2_data <- read_csv("./data/Table2_data.csv")
 
-set_overall <- tibble(formula =
-                          c(c("cumulative_adversity"),
-                            c("jDSI_paternal"),
-                            c("cumulative_adversity + jDSI_paternal"),
-                            c("cumulative_adversity + jDSI_Mtop"),
-                            c("cumulative_adversity + jDSI_Mde_top"),
-                            c("cumulative_adversity + jDSI_paternal + jDSI_Mde_top"),
-                            c("cumulative_adversity + dad_overlap_years"),
-                            c("cumulative_adversity + dad_overlap_years + jDSI_paternal")
-                          )) %>%
-    mutate(model = map(.x = formula, .f = get_coxph_model)) %>%
-    mutate(confint = map(.x = model, .f =get_confint)) %>%
-    mutate(results = map(.x = model, .f = tidy)) %>%
-    mutate(model_details = map(.x = model, .f = glance)) %>%
-    mutate(AICc = map_dbl(.x = model, .f = MuMIn::AICc)) %>%
-    mutate(model_check = map_dbl(.x = model, .f = get_coxzph)) %>%
-    unnest(cols = c(results, confint))
+## Some of the code depends on the name xdata_females_with_social
+xdata_females_with_social <- Table2_data
 
-## Note for this to work dataset has to be called xdata_females_with_social
-## The reduced dataset can be found in Table2_data
+# In the next block of code survival models are conducted for a range of models
+## the Formulat indicates which variables were included
+## See ./code/3. functions_for_data_prep.R for the functions
+set_overall <- tibble(formula =	c(c("cumulative_adversity"), ##A
+                                  c("jDSI_paternal"), ## B
+                                  c("cumulative_adversity + jDSI_paternal"),  ##C
+                                  c("cumulative_adversity + jDSI_Mtop"), ## D
+                                  c("cumulative_adversity + jDSI_Mde_top"), ## E
+                                  c("cumulative_adversity + jDSI_paternal + jDSI_Mde_top"), ## F
+                                  c("cumulative_adversity + dad_overlap_years"), ##G
+								  c("cumulative_adversity + dad_overlap_years + jDSI_paternal") ## H
+								  )) %>%
+    mutate(model = map(.x = formula, .f = get_coxph_model)) %>% ## run the survival models
+    mutate(confint = map(.x = model, .f =get_confint)) %>% ##  get confidence intervals
+    mutate(results = map(.x = model, .f = tidy)) %>% ## get tidy model resuls
+    mutate(model_details = map(.x = model, .f = glance)) %>% ## get some model variables
+    mutate(AICc = map_dbl(.x = model, .f = MuMIn::AICc)) %>% ## get addapted AICc values
+	mutate(model_check = map_dbl(.x = model, .f = get_coxzph)) %>% ## model check
+    unnest(cols = c(results, confint)) ## extract all results
 
-set_overall <- tibble(formula =
-										c(c("cumulative_adversity"), ##E
-											c("jDSI_paternal"),
-											c("cumulative_adversity + jDSI_paternal"),  ##B
-											c("cumulative_adversity + jDSI_Mtop"),
-                    	c("cumulative_adversity + jDSI_Mde_top"), ## F
-                      c("cumulative_adversity + jDSI_paternal + jDSI_Mde_top"), ## D
-											c("cumulative_adversity + dad_overlap_years"), ##C
-											c("cumulative_adversity + dad_overlap_years + jDSI_paternal")  ##A
-											)) %>%
-  mutate(model = map(.x = formula, .f = get_coxph_model)) %>%
-  mutate(confint = map(.x = model, .f =get_confint)) %>%
-  mutate(results = map(.x = model, .f = tidy)) %>%
-	mutate(model_details = map(.x = model, .f = glance)) %>%
-  mutate(AICc = map_dbl(.x = model, .f = MuMIn::AICc)) %>%
-	mutate(model_check = map_dbl(.x = model, .f = get_coxzph)) %>%
-  unnest(cols = c(results, confint))
-
-## The actual table in the paper was mannually edited.
-## The data needed for the table can be extracted usinh the following function.
+## During analysis the following formula made the tables.
+## Significant variables were highlighted and models were sorted accoding to AIC
 make_flextable(set_overall)
-
+## The actual table in the paper was manually edited and the order was changed
 ################################################################################
 #Fig 2.
+
 
 ## There is quiet a bit of prep needed to get to generate Fig 2.
 # First run two survival models
@@ -350,7 +425,7 @@ fit_cumpat_surv <- survfit(coxph_cumpat_fit
                            , newdata=data.frame(cumulative_adversity = c(1, 1, 3, 3),
                                                 jDSI_paternal = c(Low_Pat, High_Pat, Low_Pat, High_Pat)))
 
-fit_cumdpres_surv <- survfit(coxph_cumdpres_fit
+fit_cumpres_surv <- survfit(coxph_cumdpres_fit
                              , newdata=data.frame(cumulative_adversity = c(0, 0, 3, 3),
                                                   dad_overlap_years = c(1,4,1,4)))
 ## get some summary data
@@ -362,10 +437,10 @@ medium_low_Pat_low_cum = as.numeric(summary(fit_cumpat_surv)$table[,'median'][1]
 medium_high_Pat_high_cum = as.numeric(summary(fit_cumpat_surv)$table[,'median'][4])
 medium_high_Pat_low_cum = as.numeric(summary(fit_cumpat_surv)$table[,'median'][2])
 
-medium_low_pres_high_cum = as.numeric(summary(fit_cumdpres_surv)$table[,'median'][3])
-medium_low_pres_low_cum = as.numeric(summary(fit_cumdpres_surv)$table[,'median'][4])
-medium_high_pres_high_cum = as.numeric(summary(fit_cumdpres_surv)$table[,'median'][1])
-medium_high_pres_low_cum = as.numeric(summary(fit_cumdpres_surv)$table[,'median'][2])
+medium_low_pres_high_cum = as.numeric(summary(fit_cumpres_surv)$table[,'median'][3])
+medium_low_pres_low_cum = as.numeric(summary(fit_cumpres_surv)$table[,'median'][4])
+medium_high_pres_high_cum = as.numeric(summary(fit_cumpres_surv)$table[,'median'][1])
+medium_high_pres_low_cum = as.numeric(summary(fit_cumpres_surv)$table[,'median'][2])
 
 cumpat_survival_difference_lowadversity <- medium_high_Pat_low_cum - medium_low_Pat_low_cum
 cumpat_survival_difference_highadversity <- medium_high_Pat_high_cum - medium_low_Pat_high_cum
@@ -379,11 +454,11 @@ surv_data_cumpat <- data.frame(age = fit_cumpat_surv$time,
                                high_cum_high_pat = fit_cumpat_surv$surv[,4])
 
 surv_cumdpres_data <- data.frame(
-    age = fit_cumdpres_surv$time,
-    low_cum_1y = fit_cumdpres_surv$surv[,1],
-    low_cum_4y = fit_cumdpres_surv$surv[,2],
-    high_cum_1y = fit_cumdpres_surv$surv[,3],
-    high_cum_4y = fit_cumdpres_surv$surv[,4])
+    age = fit_cumpres_surv$time,
+    low_cum_1y = fit_cumpres_surv$surv[,1],
+    low_cum_4y = fit_cumpres_surv$surv[,2],
+    high_cum_1y = fit_cumpres_surv$surv[,3],
+    high_cum_4y = fit_cumpres_surv$surv[,4])
 
 ## Then make long format for ggplot
 
@@ -409,191 +484,176 @@ surv_cumdpres_data_long <- surv_cumdpres_data %>%
 
 
 ## I extracted the 0.5 survival point for the low and high jDSI pater
-medium_low_Res = as.numeric(summary(fit_cumres_surv)$table[,'median'][3])
-medium_high_Res = as.numeric(summary(fit_cumres_surv)$table[,'median'][2])
+medium_low_Res = as.numeric(summary(fit_cumpres_surv)$table[,'median'][3])
+medium_high_Res = as.numeric(summary(fit_cumpres_surv)$table[,'median'][2])
 
 survival_difference_Res = medium_high_Res - medium_low_Res
 cumres_survival_difference_Res = medium_high_Res - medium_low_Res
 
-cumres_survival_difference_lowadversity <- summary(fit_cumres_surv)$table[,'median'][2] -  summary(fit_cumres_surv)$table[,'median'][1]
+cumres_survival_difference_lowadversity <- summary(fit_cumpres_surv)$table[,'median'][2] -  summary(fit_cumpres_surv)$table[,'median'][1]
 
-cumres_survival_difference_highadversity <- summary(fit_cumres_surv)$table[,'median'][4] -  summary(fit_cumres_surv)$table[,'median'][3]
+cumres_survival_difference_highadversity <- summary(fit_cumpres_surv)$table[,'median'][4] -  summary(fit_cumpres_surv)$table[,'median'][3]
+
+### Make the actual plot
+## This needed a lot of fiddling an I made a function
+loadfonts(device = "win")
+make_plots <- function(text_height, leg_x_pos, leg_y_pos,
+                       legend_spacing, legend.spacing.y, text_size,
+                       annodate_fontsize, y_axis_margin) {
+
+    A <- coxph(data = xdata_females_with_social,
+               Surv(statage, adult_survival_status) ~
+                   cumulative_adversity + jDSI_paternal + dad_overlap_years) %>%
+        tidy() %>%
+        mutate(term = case_when(term == "cumulative_adversity" ~ "cumulative adversity",
+                                term == "jDSI_paternal" ~ "paternal dyadic bond strength",
+                                term == "dad_overlap_years" ~ "co-residency with father")) %>%
+        mutate(term = forcats::fct_relevel(term, "cumulative adversity", after = Inf)) %>%
+        mutate(low.95 = exp(estimate - 1.96*std.error),
+               ,high.95 = exp(estimate + 1.96*std.error)) %>%
+        ggplot(aes(y = term, x = exp(estimate))) +
+        geom_segment(aes(x = low.95, xend = high.95, yend = term, color = term),
+                     size = 5) +
+        geom_point(size = 2, color = "black") +
+        theme_cowplot(font_size = text_size, font_family = "Times New Roman") +
+        labs(x="Hazard ratio") +
+        geom_vline(xintercept = 1) +
+        scale_color_manual(values = c( "dodgerblue4", "green4", "darkgrey")) +
+        annotate("text",x= .85, y=text_height,
+                 label="Enhanced survival", color = "black",
+                 size = (text_size-2)/.pt) +
+        annotate("text",x= 1.15,y=text_height,
+                 label="Reduced survival",
+                 color = "black", size = (text_size-2)/.pt)+
+        geom_curve(x = .70, y = text_height - 0.025, xend = .50, yend = text_height - 0.025, curvature = 0,
+                   arrow = arrow(length = unit(0.1, "inch")), size = 1,
+                   color = "black") +
+        geom_curve(x = 1.3, y = text_height - 0.025, xend = 1.50, yend = text_height - 0.025, curvature = 0,
+                   arrow = arrow(length = unit(0.1, "inch")), size = 1,
+                   color = "black")  +
+        scale_x_continuous(limits = c(.5, 1.75)) +
+        coord_cartesian(ylim=c(1.2,3),clip="off") +
+        theme(aspect.ratio = .2,
+              legend.position = "none",
+              text = element_text(size = text_size)) +
+        labs(y="")
+
+    B <- surv_data_cumpat_long %>%
+        mutate(cumulative_level = if_else(str_detect(tolower(type), "low"),
+                                          "Low cumulative adversity (1)",
+                                          "High cumulative adversity (3)"),
+               paternal_level = if_else(str_detect(tolower(type), "weak"),
+                                        "Weak paternal bond (bottom 25%)",
+                                        "Strong paternal bond (top 25%)")) %>%
+        ggplot() +
+        geom_line(aes(x = age,
+                      y = predicted.value,
+                      colour = paternal_level,
+                      linetype = cumulative_level),
+                  size = .8) +
+        scale_color_manual(values = c("green4", "green2")) +
+        scale_linetype_manual(values = c("dotted", "solid")) +
+        cowplot::theme_cowplot(font_size = text_size, font_family = "Times New Roman")
+
+
+    ## cumulative adn dad overlap
+    C<-  surv_cumdpres_data_long %>%
+        mutate(cumulative_level = if_else(str_detect(tolower(type), "low"),
+                                          "Low cumulative adversity (1)",
+                                          "High cumulative adversity (3)"),
+               paternal_level = if_else(str_detect(tolower(type), "4"),
+                                        "Long paternal co-residency (4y)",
+                                        "Short paternal co-residency (1y)")) %>%
+        ggplot() +
+        geom_line(aes(x = age,
+                      y = predicted.value,
+                      colour = paternal_level,
+                      linetype = cumulative_level),
+                  size = .8) +
+        scale_color_manual(values = c("dodgerblue4", "dodgerblue")) +
+        scale_linetype_manual(values = c("dotted", "solid")) +
+        cowplot::theme_cowplot(font_size = text_size, font_family = "Times New Roman")
+
+    ## Most of the custom settings are done in the next part
+    set_plot_layout <- list(
+        scale_x_continuous(expand = c(0, 0), limits = c(0, 27)),
+        scale_y_continuous(expand = c(0, 0), limits = c(0, 1)),
+        cowplot::theme_cowplot(font_size = text_size),
+        theme(legend.text=element_text(size=text_size*0.75),
+              legend.position = c(leg_x_pos, leg_y_pos),
+              legend.spacing = unit(10, "cm"),  # Adjust spacing between items
+              legend.spacing.y = unit(-.3, "cm"), ## distance between
+              legend.key.width =  unit(1, "cm"),
+              legend.key.height =  unit(legend_spacing, "cm"),
+              legend.key.size = unit(0.8, "cm"),  # Consistent key size
+              legend.margin = margin(t = -5, b = -5, unit = "pt"),
+              plot.margin = unit(c(0, 0, 0, 0,0), "cm"),
+              text = element_text(family = "Times New Roman", size = text_size),
+              axis.text = element_text(size = text_size-1),
+              plot.title = element_text(hjust = 0.5, size = text_size,  face = "bold"),
+              axis.title.y = element_text(margin = y_axis_margin)),
+        labs(x = "Age in years",
+             y = "Proportion surviving",
+             linetype = "",
+             color = ""),
+        guides(colour = guide_legend(nrow = 2),
+               linetype = guide_legend(override.aes = list(size = .5, n.dots = 5)))
+    )
+
+        A2 <- A +  theme(
+        text = element_text(family = "Times New Roman"),
+        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 11),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size =11),
+        legend.text = element_text(size =11),
+        plot.margin = unit(c(0, 0, 0, 0), "cm")
+        )
+
+    B2 <- B  + set_plot_layout +
+        labs(title = expression("Grooming relationship (DSI"[paternal]*")"))
+
+    C2 <- C + set_plot_layout +
+        labs(title = "Paternal co-residency")
+
+    combined <- plot_grid(plot_grid(A2, NULL, labels = c("A.")
+                                    , label_size = text_size
+                                    , label_x = 0
+                                    , label_y = .8
+                                    , hjust = -.5
+                                    , rel_widths = c(1,.1)),
+                          plot_grid(B2, C2,
+                                    labels = c("B.", "C.")
+                                    , align = "v"
+                                    , label_size = text_size
+                                    , label_x = 0
+                                    , label_y = 1.05
+                                    , hjust = -.5
+                          ), nrow = 2, rel_heights = c(1, 3))
+
+    ggsave("./figures/Fig2.jpg", combined, width = 8.5, height = 6, units = "in", dpi = 1200)
+
+
+
+}
 
 text_height = 3.6
-A <- coxph(data = Fig2_data, Surv(statage, adult_survival_status) ~ cumulative_adversity + jDSI_paternal + dad_overlap_years) %>%
-    tidy() %>%
-    mutate(term = case_when(term == "cumulative_adversity" ~ "cumulative adversity",
-                            term == "jDSI_paternal" ~ "paternal dyadic bond strength",
-                            term == "dad_overlap_years" ~ "co-residency with father")) %>%
-    mutate(term = forcats::fct_relevel(term, "cumulative adversity", after = Inf)) %>%
-    mutate(low.95 = exp(estimate - 1.96*std.error),
-           high.95 = exp(estimate + 1.96*std.error),
-           low.99 = exp(estimate - 2.575*std.error),
-           high.99 = exp(estimate + 2.575*std.error)) %>%
-    ggplot(aes(y = term, x = exp(estimate))) +
-    geom_segment(aes(x = low.99, xend = high.99, yend = term),
-                 linewidth =  5, color = "dodgerblue", alpha = .7) +
-    geom_segment(aes(x = low.95, xend = high.95, yend = term),
-                 linewidth = 5, color = "dodgerblue4") +
-    geom_point(size = 2,, color = "black") +
-    theme_cowplot() +
-    # scale_x_continuous(trans='log10',
-    # 									 breaks = c(.5, .7, 1, 1,3, 1.5, 2),
-    # 									 limits = c(.45, 2)
-    labs(x="Hazard ratio") +
-    geom_vline(xintercept = 1) +
-    annotate("text",x= .8,y=text_height,label="Enhanced survival", color = "gray")+
-    annotate("text",x= 1.2,y=text_height,label="Reduces survival", color = "gray")+
-    geom_curve(x = .63, y = text_height - 0.025, xend = .55, yend = text_height - 0.025, curvature = 0,
-               arrow = arrow(length = unit(0.08, "inch")), size = 1,
-               color = "gray") +
-    geom_curve(x = 1.36, y = text_height - 0.025, xend = 1.44, yend = text_height - 0.025, curvature = 0,
-               arrow = arrow(length = unit(0.08, "inch")), size = 1,
-               color = "gray")  +
-    #scale_y_discrete(expand = expand_scale(mult = c(0.5, .5))) +
-    coord_cartesian(ylim=c(1.2,3),clip="off") +
-    theme(aspect.ratio = .2) +
-    labs(y="")
+leg_x_pos = 0.01
+leg_y_pos = .21
+legend.spacing.y = 1
+legend_spacing = .4
+text_size = 12
+annodate_fontsize = 6
+y_axis_margin <- margin(0, 0,0, 0)
 
-## survival plotea and paternal
-B <- ggplot() +
-    geom_line(data = surv_data_cumpat_long, aes(x = age,
-                                                y = predicted.value,
-                                                colour = type,
-                                                linetype = type),
-              size = 1.2) +
-    geom_segment(aes(x = 0, xend = medium_high_Pat_low_cum,
-                     y  = 0.5, yend = 0.5),
-                 color = 'black', linetype = 'dashed') +
-
-
-    geom_segment(aes(x = medium_high_Pat_low_cum, xend = medium_high_Pat_low_cum,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dashed') +
-    geom_segment(aes(x = medium_low_Pat_low_cum, xend = medium_low_Pat_low_cum,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dashed') +
-    geom_segment(aes(x = medium_high_Pat_low_cum - 0.3, xend = medium_low_Pat_low_cum + 0.3,
-                     y  = 0.07, yend = 0.07),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    geom_segment(aes(x = medium_low_Pat_low_cum + 0.3, xend = medium_high_Pat_low_cum - 0.3,
-                     y  = 0.07, yend = 0.07),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    annotate("text",x = medium_low_Pat_low_cum + (medium_high_Pat_low_cum - medium_low_Pat_low_cum)/2, y = 0.03, size = 2,
-             label = paste0(round(medium_high_Pat_low_cum - medium_low_Pat_low_cum,2), " y")) +
-
-
-
-    geom_segment(aes(x = 0, xend = medium_high_Pat_high_cum,
-                     y  = 0.5, yend = 0.5),
-                 color = 'black', linetype = 'dotdash') +
-    geom_segment(aes(x = medium_low_Pat_high_cum, xend = medium_low_Pat_high_cum,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dotted') +
-    geom_segment(aes(x = medium_high_Pat_high_cum, xend = medium_high_Pat_high_cum,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dotted') +
-    geom_segment(aes(x = medium_low_Pat_high_cum + 0.3, xend = medium_high_Pat_high_cum -0.3,
-                     y  = 0.06, yend = 0.06),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    geom_segment(aes(x = medium_high_Pat_high_cum - 0.3, xend = medium_low_Pat_high_cum + 0.3,
-                     y  = 0.06, yend = 0.06),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    annotate("text",x = medium_low_Pat_high_cum + (medium_high_Pat_high_cum - medium_low_Pat_high_cum)/2
-             , y = 0.03, size = 2, size = 5,
-             label = paste0(round(medium_low_Pat_low_cum - medium_low_Pat_high_cum,2), " y")) +
-    scale_x_continuous(expand = c(0, 0), limits = c(0, 31)) +
-    scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
-    cowplot::theme_cowplot(font_size = 8) +
-    theme(legend.position = "none",
-          legend.text=element_text(size=7),
-          plot.margin = unit(c(0, 0, 0, 0), "cm")) +
-    scale_color_manual(values = c("firebrick", "firebrick", "dodgerblue4", "dodgerblue4")) +
-    scale_linetype_manual(values = c("solid", "dotted", "solid", "dotted")) +
-    labs(x = "Age",
-         y = "Survival change",
-         linetype = "",
-         color = "")  +
-    guides(colour = guide_legend(nrow = 2))
-
-
-C <- ggplot() +
-    geom_line(data = surv_cumdpres_data_long, aes(x = age,
-                                                y = predicted.value,
-                                                colour = type,
-                                                linetype = type),
-              size = 1.2) +
-    geom_segment(aes(x = medium_low_pres_low_cum, xend = medium_high_pres_low_cum,
-                     y  = 0.5, yend = 0.5),
-                 color = 'black', linetype = 'dashed') +
-    geom_segment(aes(x = medium_high_pres_high_cum, xend = medium_high_pres_high_cum,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dashed') +
-    geom_segment(aes(x = medium_high_pres_low_cum-.1, xend = medium_high_pres_low_cum-.1,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dashed') +
-    geom_segment(aes(x = 0, xend = medium_low_pres_low_cum,
-                     y  = 0.5, yend = 0.5),
-                 color = 'black', linetype = 'dotdash') +
-    geom_segment(aes(x = medium_low_pres_low_cum, xend = medium_low_pres_low_cum,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dotted') +
-    geom_segment(aes(x = medium_low_pres_high_cum, xend = medium_low_pres_high_cum,
-                     y  = 0, yend = 0.5),
-                 color = 'black', linetype = 'dotted') +
-    geom_segment(aes(x = medium_low_pres_high_cum + 0.3, xend = medium_low_pres_low_cum -0.3,
-                     y  = 0.06, yend = 0.06),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    geom_segment(aes(x = medium_low_pres_low_cum - 0.3, xend = medium_low_pres_high_cum + 0.3,
-                     y  = 0.06, yend = 0.06),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    annotate("text",x = medium_low_pres_high_cum + (medium_low_pres_low_cum - medium_low_pres_high_cum)/2,
-             y = 0.03, size = 2,
-             label = paste0(round(medium_low_pres_low_cum - medium_low_pres_high_cum,2), " y")) +
-
-    geom_segment(aes(x = medium_high_pres_high_cum + 0.3, xend = medium_high_pres_low_cum -0.3,
-                     y  = 0.07, yend = 0.07),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    geom_segment(aes(x = medium_high_pres_low_cum - 0.3, xend = medium_high_pres_high_cum + 0.3,
-                     y  = 0.07, yend = 0.07),
-                 size = .2, arrow = arrow(length = unit(0.05, "inches"))) +
-    annotate("text",x = medium_high_pres_high_cum + (medium_high_pres_low_cum -
-                                                         medium_high_pres_high_cum)/2, y = 0.03, size = 2,
-             label = paste0(round(medium_high_pres_low_cum - medium_high_pres_high_cum,2), " y")) +
-    scale_x_continuous(expand = c(0, 0), limits = c(0, 31)) +
-    scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
-    cowplot::theme_cowplot(font_size = 8) +
-    #theme(legend.position = "bottom") +
-    theme(#legend.position = c(.6, .92),
-        #legend.position = "none",
-        legend.text=element_text(size=7),
-        plot.margin = unit(c(0, 0, 0, 0), "cm")) +
-    scale_color_manual(values = c("firebrick", "firebrick", "dodgerblue4", "dodgerblue4")) +
-    scale_linetype_manual(values = c("solid", "dotted", "solid", "dotted")) +
-    labs(x = "Age",
-         y = "Survival change",
-         linetype = "",
-         color = "")  +
-    guides(colour = guide_legend(nrow = 2))
-
-plot_grid(plot_grid(A, labels = c("A.")
-                    , label_size = 8
-                    , label_x = 0
-                    , label_y = 1
-                    , hjust = -.5),
-          plot_grid(B, C, rel_heights = c(1, 2),
-                    labels = c("B.", "C.")
-                    , align = "v"
-                    , label_size = 8
-                    , label_x = 0
-                    , label_y = 1
-                    , hjust = -.5
-          ), nrow = 2)
+make_plots(text_height, leg_x_pos, leg_y_pos, legend_spacing, legend.spacing.y, text_size, annodate_fontsize,  y_axis_margin)
+## Plot looks ok, but needs some layout fiddling. It might need patchwork instead of cowplot.
 
 ################################################################################
 ## Table 3
 
 who_grooms_bootstrap <- read_csv("./data/who_grooms_bootstrap_13SEP24.csv")
+
 Table3_data <- who_grooms_bootstrap %>%
     filter(is_dad & has_consort_data) %>%
     select(focal
@@ -615,7 +675,11 @@ Table3_data <- replace_names_with_ids(
     columns = c("focal")
 )
 
+
+
+
 write_csv(Table3_data, "./data/Table3_data.csv")
+Table3_data <- read_csv("./data/Table3_data.csv")
 
 who_grooms_full_model_only_dad_interpretation = c(
     c(""),
@@ -637,23 +701,33 @@ who_grooms_full_model_only_dad_interpretation = c(
     c("")
 )
 
+## The table for this model is made by a function.
+## The function works with model results from the bootstrapping
+## It does model averaging ect. You have to give it the name of model,
+## the dataset and an vector with interpretations.
+
+
 make_model_flextable(model = "who_grooms_full_model_only_dad",
                      dataset = who_grooms_bootstrap,
                      explain_text = who_grooms_full_model_only_dad_interpretation)
 
-Table4_data <- who_grooms_bootstrap %>%
-    filter(is_dad & has_consort_data) %>%
-    inner_join(select(xdata_females_with_social, focal, dad_overlap_years))  %>%
+################################################################################
+## Table 4
+dad_overlap_only_know_data <- read_csv("./data/dad_overlap_only_know_data.csv")
+
+Table4_data <- dad_overlap_only_know_data %>%
     select(focal
-           , mom_age, AMales_age
-           , mean_ordrank
+           , mom_age, dad_age,
+           , male_rank
            , daily_d_days_rate
            , proportion_consort_time
            , nr_pdads
            , previous_kid_with_mom
            , offspring_years
            , cumulative_adversity
-           , dad_overlap_years)
+           , dad_overlap_years
+           , dad)
+
 
 Table4_data <- replace_names_with_ids(
     data = Table4_data,
@@ -662,3 +736,71 @@ Table4_data <- replace_names_with_ids(
 )
 
 write_csv(Table4_data, "./data/Table4_data.csv")
+Table4_data <- read_csv("./data/Table4_data.csv")
+
+dad_overlap_only_known_model_prop_consort_formula <- dad_overlap_years ~ 1 +
+    mom_age+ dad_age +
+    male_rank +
+    daily_d_days_rate +
+    proportion_consort_time +
+    nr_pdads +
+    previous_kid_with_mom +
+    offspring_years +
+    cumulative_adversity +
+    (1|dad)
+
+dad_overlap_only_known_model_prop_consort <- lmer(dad_overlap_only_known_model_prop_consort_formula
+                                                  , data = Table4_data
+                                                  , na.action = 'na.fail')
+
+dad_overlap_only_known_model_prop_consort_results <- dad_overlap_only_known_model_prop_consort %>%
+    broom.mixed::tidy() %>%
+    left_join(vif.mer(dad_overlap_only_known_model_prop_consort), by = 'term') %>%
+    mutate(run = paste0("model_", 0)) %>%
+    mutate(row = NA) %>%
+    select(row, everything()) %>%
+    mutate(term = if_else(str_detect(term, "rank"), "dad_rank", term))
+
+explain_text <- c(
+    c(""),
+    c("\U2191 maternal age  \U2191 co-residency"),
+    c("\U2191 paternal age  \U2191 co-residency"),
+    c("\U2191 offspring \U2191 co-residency"),
+    c("\U2191 fertile females \U2191 co-residency"),
+    c("trend: had offsping \U2191 co-residency"),
+    rep(c(""),4)
+
+)
+
+t1 <- dad_overlap_only_known_model_prop_consort_results %>%
+    filter(effect == 'fixed') %>%
+    select(-effect, -group, -all_of(intersect(names(t1), "model_run"))) %>%
+    mutate(term = case_when(str_detect(term , "bootstrap_previous") ~ "previous_kid_with_mom",
+                            str_detect(term , "bootstrap_next") ~ "next_kid_with_mom",
+                            TRUE ~ term)) %>%
+    group_by(term) %>%
+    summarise_all(.funs = median) %>%
+    mutate(term = map_chr(.x = term, fix_terms)) %>%
+    mutate(order = if_else(str_detect(term, "Intercept"), 1, 2)) %>%
+    arrange(order, p.value) %>%
+    mutate(p.value = format.pval(p.value, eps = .001, digits = 2)) %>%
+    select(-order, -VIF) %>%
+    mutate(interpretation = explain_text)
+
+t1 <- t1 %>%  select(-df)
+
+names(t1)[2:5] <- c('\U03B2','\U03C3', 't', 'p')
+
+t1 %>%
+    flextable() %>%
+    colformat_double(digits = 3) %>%
+    theme_vanilla() %>%
+    fontsize(size = 8, part = "all") %>%
+    align(align = "left", part = "header") %>%
+    align(j = 2:5, align = "center", part = "body" ) %>%
+    width(j = 1, width = 2.2, unit = "in") %>%
+    width(j = 2:5, width = .5, unit = "in") %>%
+    width(j = 6, width =3, unit = "in") %>%
+    height(height = 2,part = "header") %>%
+    valign(valign = "bottom", part = "header") %>%
+    valign(valign = "top", part = "body")
