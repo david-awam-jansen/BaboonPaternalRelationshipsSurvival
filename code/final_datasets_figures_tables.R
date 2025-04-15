@@ -12,6 +12,10 @@
 ## The data in the publicly available has been anonymized.
 ## The key to get back tp original snames is available up on request.
 
+
+## Note some tables and figures were changed after review
+## Please see additional_analysis.R for details.
+
 ## libraries
 packages <- c(
       "broom"
@@ -26,17 +30,27 @@ packages <- c(
     , "systemfonts"
     , "tidyverse")
 
-font_import()  # This may take a while
-loadfonts()    # Load fonts into the current session
-
-
 ## install packages if needed and open libaries
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
     install.packages(setdiff(packages, rownames(installed.packages())), dependencies = TRUE)
 }
+
 lapply(packages, require, character.only = TRUE, warn.conflicts = TRUE,
        quietly = FALSE)
 
+## briefly set to main directory
+setwd("N:/Other computers/My Laptop (before crash)/DSI_paternal_female_survival")
+load("./data/data_set_for_dad_analysis_21JUN22.Rdata") ## this can be the older version
+load("./data/datasets_for_paper_1MAR24.Rdata")
+load("./data/Silk_figure_data_1MAR24.Rdata")
+setwd("N:/My Drive/BaboonPaternalRelationshipsSurvival")
+
+## to import fonts
+# This may take a while
+#font_import()
+#loadfonts()    # Load fonts into the current session
+
+## will be used to rename files
 coded_names <- biograph_l %>%
     arrange(birth) %>%
     select(sname, sex) %>%
@@ -81,14 +95,13 @@ format_and_save_plot <- function(plot, file_name, width = 6, height = 4, dpi = 3
     return(formatted_plot)
 }
 
-
-load("./data/data_set_for_dad_analysis_21JUN22.Rdata") ## this can be the older version
-load("./data/datasets_for_paper_1MAR24.Rdata")
-load("./data/Silk_figure_data_1MAR24.Rdata")
-
 xdata_females_with_social <- xdata_females_with_social %>%
     rename_with(~str_remove(., '.universal')) %>%
     mutate(cumulative_adversity =  if_else(cumulative_adversity > 3, 3, cumulative_adversity))
+
+xdata_females_with_social %>%
+    select(sname = focal, name, pid, birth, matgrp, mom, dad) %>%
+    write_csv("table_of_focals_Beth_26MAR25.csv")
 
 ## function to anonymize the data
 replace_names_with_ids <- function(data, coded_names, columns) {
@@ -108,8 +121,6 @@ replace_names_with_ids <- function(data, coded_names, columns) {
         ))
 }
 
-
-
 ################################################################################
 ## Fig 1
 ## Fig 1A
@@ -125,49 +136,14 @@ Fig1A_data <- replace_names_with_ids(
 )
 
 write_csv(x = Fig1A_data, file = "./data/data_FigA.csv")
-Fig1A_data <- read_csv("./data/data_FigA.csv")
+Fig1A_data <- read_csv("./data/data_Fig1A.csv")
 
 classes_Fig1A_data <- Fig1A_data %>%
-    mutate(class = round(dad_overlap_years)) %>%
+    mutate(class = ceiling(dad_overlap_years)) %>%
     group_by(class) %>%
     summarise(cases =n(), .groups = 'drop') %>%
     mutate(class_max = cumsum(cases)) %>%
     mutate(percentage = round(class_max/max(class_max) * 100,0))
-
-
-Fig1A <- ggplot() +
-    geom_segment(data = Fig1A_data,
-                 aes(x = 0, xend= dad_overlap_years,
-                     y=focal_order,
-                     yend = focal_order),
-                 size = .2) +
-    labs(x = "Cumulative duration of co-residency (years)",
-         y = "Juvenile female subjects") +
-    scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
-    scale_y_continuous(breaks= classes_Fig1A_data$class_max,
-                       labels= paste0(classes_Fig1A_data$class_max, " (",
-                                      classes_Fig1A_data$percentage, '%)'),
-                       expand = c(0, 0), limits = c(0, NA)) +
-    geom_segment(data = classes_Fig1A_data,
-                 aes(x=class, xend = class,
-                     y = 0, yend = class_max),
-                 linetype = "dashed", color = "red", size = .2) +
-    geom_segment(data = classes_Fig1A_data,
-                 aes(x=0, xend = class,
-                     y = class_max, yend = class_max),
-                 linetype = "dashed", color = "red", size =.2) +
-    cowplot::theme_cowplot(font_size = 6) +
-    theme(plot.margin = margin(t = 7, r = 7, b = 7, l = 7,unit = "pt")) +
-    theme(
-        text = element_text(family = "Times New Roman"),
-        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 11),
-        axis.text = element_text(size = 11),
-        legend.title = element_text(size =11),
-        legend.text = element_text(size =11)
-    )
-
-format_and_save_plot(Fig1A, "./figures/Fig1A", dpi = 600, height = 6, width = 4, formats = c("jpg"))
 
 ## Fig 1B
 Fig1B_data <- actor_actees_juvAM %>%
@@ -206,8 +182,12 @@ Fig1B_data <- replace_names_with_ids(
     columns = c("juvenile")
 )
 
-write_csv(x = Fig1B_data, file = "./data/data_FigB.csv")
-Fig1B_data <- read_csv(file = "./data/data_FigB.csv")
+write_csv(x = Fig1B_data, file = "./data/data_Fig1B.csv")
+Fig1B_data <- read_csv(file = "./data/data_Fig1B.csv") %>%
+    mutate(paternal_grooms = forcats::fct_relevel(paternal_grooms,
+            "Grooming between juvenile females and their fathers",
+            "Grooming between juvenile females and any adult male"))
+
 Fig1B_plot_data <-
     tibble(juvenile = rep(unique(Fig1B_data$juvenile), each = 16),
                           age_class = rep(rep(unique(Fig1B_data$age_class),
@@ -230,8 +210,50 @@ Fig1B_plot_data <-
            lower.ci.value =
                mean.value - qt(1 - (0.05 / 2), n.value - 1) * se.value,
            upper.ci.value =
-               mean.value + qt(1 - (0.05 / 2), n.value - 1) * se.value)
+               mean.value + qt(1 - (0.05 / 2), n.value - 1) * se.value) %>%
+    mutate(dyad_type = case_when(
+        dyad_type == "Any adult male grooms juv. female" ~ "Adult male grooms juvenile female",
+        dyad_type == "Juv. female grooms any adult male" ~ "Juvenile female grooms adult male",
+        dyad_type == "Daughter grooms father" ~ "Juvenile female  grooms father",
+        dyad_type == "Father grooms daughter" ~ "Father grooms juvenile female")) %>%
+    mutate(dyad_type = forcats::fct_relevel(dyad_type,
+                                  "Father grooms juvenile female",
+                                  "Juvenile female  grooms father",
+                                  "Adult male grooms juvenile female",
+                                  "Juvenile female grooms adult male"))
 
+Fig1A <- ggplot() +
+    geom_segment(data = Fig1A_data,
+                 aes(x = 0, xend= dad_overlap_years,
+                     y=focal_order,
+                     yend = focal_order),
+                 size = .2) +
+    labs(x = "Cumulative co-residency with father (years)",
+         y = "Juvenile female subjects") +
+    scale_x_continuous(expand = c(0, 0), limits = c(0, NA)) +
+    scale_y_continuous(breaks= classes_Fig1A_data$class_max,
+                       labels= paste0(classes_Fig1A_data$class_max, " (",
+                                      classes_Fig1A_data$percentage, '%)'),
+                       expand = c(0, 0), limits = c(0, NA)) +
+    geom_segment(data = classes_Fig1A_data,
+                 aes(x=class, xend = class,
+                     y = 0, yend = class_max),
+                 linetype = "dashed", color = "red", linewidth = 1) +
+    geom_segment(data = classes_Fig1A_data,
+                 aes(x=0, xend = class,
+                     y = class_max, yend = class_max),
+                 linetype = "dashed", color = "red", linewidth = 1) +
+    cowplot::theme_cowplot(font_family = "Times New Roman") +
+    theme(
+        text = element_text(family = "Times New Roman"),
+        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 11),
+        axis.text = element_text(size = 11),
+        legend.title = element_text(size =11),
+        legend.text = element_text(size =11)
+    )
+
+ggsave(plot = Fig1A, filename = "./figures/Fig1A.jpg", width = 8.5, dpi = 600)
 
 Fig1B <- Fig1B_plot_data %>%
     ggplot(aes(x=age_class,
@@ -245,20 +267,21 @@ Fig1B <- Fig1B_plot_data %>%
     geom_line(linetype = 'dashed', size = .5, position = position_dodge(.5)) +
     scale_x_discrete(expand = expansion(add = c(0.2, 0.2))) +
     scale_y_continuous(labels = scales::percent, expand = c(0, 0.017)) +
+
     facet_wrap(. ~ paternal_grooms, ncol = 1) +
     scale_fill_manual(values = c("#2c7bb6", "#abd9e9",
                                  "#d7191c", "#fdae61"),
-                      breaks = c("Father grooms daughter",
-                                 "Daughter grooms father",
-                                 "Any adult male grooms juv. female",
-                                 "Juv. female grooms any adult male")) +
+                      breaks = c("Father grooms juvenile female",
+                                 "Juvenile female  grooms father",
+                                 "Adult male grooms juvenile female",
+                                 "Juvenile female grooms adult male")) +
     scale_color_manual(values = c("#2c7bb6", "#abd9e9",
                                   "#d7191c", "#fdae61"),
-                       breaks = c("Father grooms daughter",
-                                  "Daughter grooms father",
-                                  "Any adult male grooms juv. female",
-                                  "Juv. female grooms any adult male")) +
-    cowplot::theme_cowplot(font_size = 8) +
+                       breaks = c("Father grooms juvenile female",
+                                  "Juvenile female  grooms father",
+                                  "Adult male grooms juvenile female",
+                                  "Juvenile female grooms adult male")) +
+    cowplot::theme_cowplot(font_family = "Times New Roman") +
     guides(fill = 'none',
            color = guide_legend(ncol = 1, size = 5)) +
     labs(x= "Juvenile female age (years)",
@@ -267,8 +290,7 @@ Fig1B <- Fig1B_plot_data %>%
     theme(strip.text.x = element_text(size = 8, angle = 0),
           legend.text=element_text(size=rel(0.6)),
           legend.position = "bottom",
-          legend.title = element_blank(),
-          plot.margin = margin(t = 5, r = 5, b = 5, l = 5)) +
+          legend.title = element_blank()) +
     theme(
         text = element_text(family = "Times New Roman"),
         plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
@@ -277,33 +299,38 @@ Fig1B <- Fig1B_plot_data %>%
         legend.title = element_text(size =11),
         legend.text = element_text(size =11))
 
-Fig1B
-format_and_save_plot(Fig1B, "./figures/Fig1B", dpi = 600, height = 6, width = 4, formats = c("jpg"))
+
+ggsave(plot = Fig1B, filename = "./figures/Fig1B.jpg", width = 8.5, dpi = 600)
 
 ## To create publication ready figures font sizes may have to be adapted
-Fig1 <- cowplot::plot_grid(Fig1A, Fig1B, align = "v", labels = "AUTO", rel_widths = c(.3, .3))
+Fig1 <- cowplot::plot_grid(Fig1A, NULL, Fig1B,
+                           align = "hv",
+                           labels = c("A", "B"),
+                           label_x = 0,
+                           label_y = 1,
+                           hjust = -.5,
+                           ncol = 3,
+                           rel_widths = c(1.5, .1, 1.5))
+
+wrapped_Fig1A <- wrap_elements(full = Fig1A)
+wrapped_Fig1B <- wrap_elements(full = Fig1B)
+
+# Combine side by side
+Fig1 <- wrapped_Fig1A + wrapped_Fig1B +
+    plot_layout(ncol = 2) +
+    plot_annotation(tag_levels = "A") &
+    theme(plot.tag = element_text(family = "Times New Roman"))
 
 # Now save the combined figure
 # For some reason the format_and_save+plot does not work for this combined figure
-ggsave(plot = Fig1, filename = "./figures/Fig1.jpg", width = 8, height = 6, dpi = 600)
-
-
-format_and_save_plot(Fig1, "./figures/Fig1.jpg", dpi = 600, height = 6, width = 8, formats = c("jpg"))
+ggsave(plot = Fig1, filename = "./figures/Fig1.jpg", width = 8.5, dpi = 600)
 
 ################################################################################
 ## Table 1
-juvenile_values <- read_csv("./data/juvenile_values.csv") %>%
-    mutate(age_class = floor(juvenile_age))
+## After review the data for this table changed
+## Please see additional  analysis for details.
 
-Table1_data %>%
-    select(focal, sname, age_class) %>%
-    distinct()
-    mutate(nr = n()) %>%
-    filter(nr > 2)
-    arrange(focal, sname, age_class)
-
-
-Table1_data <- juvenile_values %>%
+juvenile_model_values <- read_csv("./data/data_for_juvenile_model.csv") %>%
     inner_join(biograph_l %>%
                    filter(sex == "F") %>%
                    select(juvenile_id = sname)) %>%
@@ -312,7 +339,7 @@ Table1_data <- juvenile_values %>%
     filter(str_detect(paternal_groom, "paternal"))
 
 Table1_data <- replace_names_with_ids(
-    data = Table1_data,
+    data = juvenile_model_values,
     coded_names = coded_names,
     columns = c("focal", "juvenile_id", "sname")
 )
@@ -321,21 +348,22 @@ write_csv(Table1_data, "./data/Table1_data.csv")
 Table1_data <- read_csv("./data/Table1_data.csv")
 
 juvenile_model <- Table1_data %>%
-    filter(str_detect(paternal_groom, "paternal")) %>%
-    lmer(formula = bond_strength ~ juvenile_age + is_dad + (1|juvenile_id)) %>%
+    lmer(formula = bond_strength ~ juvenile_age + is_dad + (1|juvenile_id))
+
+juvenile_model_results <- juvenile_model %>%
     broom.mixed::tidy() %>%
     filter(effect == 'fixed')
 
-juvenile_model <- juvenile_model %>%
+juvenile_model_results <- juvenile_model_results %>%
     select(term, estimate, std.error, statistic, df, p.value)
 
-names(juvenile_model)[2:6] <- c('\U03B2','\U03C3', 't', 'df', 'p')
+names(juvenile_model_results)[2:6] <- c('\U03B2','\U03C3', 't', 'df', 'p')
 
 juv_mod_interpretation = c("",
                            "\U2191 Juvenile age \U2191 bond strength",
                            "\U2191 bond strength = male is father")
 
-juvenile_model %>%
+juvenile_model_results %>%
     mutate(term = c(
         "Intercept",
         "Age of juvenile",
@@ -343,7 +371,7 @@ juvenile_model %>%
     mutate(interpretation = c("",
                               "\U2191 Juvenile age \U2191 bond strength",
                               "\U2191 bond strength = male is father")) %>%
-    mutate(p = format.pval(p, eps = .001, digits = 2)) %>%
+    mutate(p = format.pval(p, eps = .001, digits = 1)) %>%
     flextable::flextable() %>%
     flextable::colformat_double(j = 2:5,digits = 3, big.mark = "", decimal.mark = ".") %>%
     flextable::colformat_double(j = 6,digits = 3, big.mark = "", decimal.mark = ".") %>%
@@ -356,6 +384,15 @@ juvenile_model %>%
     flextable::width(j = 2:4, width= .5) %>%
     flextable::width(j = 5, width= .7) %>%
     flextable::width(j = 7, width= 2)
+
+
+## getting some AIC values
+AIC(juvenile_model
+    , update(juvenile_model, . ~ . - is_dad)
+    , update(juvenile_model, . ~ . - juvenile_age)
+    ) %>%
+    as_tibble(rownames = "Model") %>%
+    mutate(dAIC = AIC - AIC(juvenile_model))
 
 ################################################################################
 ## Table 2
@@ -401,7 +438,8 @@ make_flextable(set_overall)
 ## The actual table in the paper was manually edited and the order was changed
 ################################################################################
 #Fig 2.
-
+Table2_data <- read_csv("./data/Table2_data.csv")
+xdata_females_with_social <- Table2_data
 
 ## There is quiet a bit of prep needed to get to generate Fig 2.
 # First run two survival models
@@ -460,6 +498,8 @@ surv_cumdpres_data <- data.frame(
     high_cum_1y = fit_cumpres_surv$surv[,3],
     high_cum_4y = fit_cumpres_surv$surv[,4])
 
+save(surv_data_cumpat, surv_cumdpres_data, file = "./data/Fig2.RData")
+
 ## Then make long format for ggplot
 
 surv_data_cumpat_long <- surv_data_cumpat %>%
@@ -496,6 +536,9 @@ cumres_survival_difference_highadversity <- summary(fit_cumpres_surv)$table[,'me
 
 ### Make the actual plot
 ## This needed a lot of fiddling an I made a function
+
+## Note this figure was changed after review.
+## See additional analysis for details
 loadfonts(device = "win")
 make_plots <- function(text_height, leg_x_pos, leg_y_pos,
                        legend_spacing, legend.spacing.y, text_size,
@@ -582,7 +625,8 @@ make_plots <- function(text_height, leg_x_pos, leg_y_pos,
         theme(legend.text=element_text(size=text_size*0.75),
               legend.position = c(leg_x_pos, leg_y_pos),
               legend.spacing = unit(10, "cm"),  # Adjust spacing between items
-              legend.spacing.y = unit(-.3, "cm"), ## distance between
+              #legend.spacing.y = unit(-.3, "cm"), ## distance between
+              legend.spacing.y = unit(1, "cm"), ## distance between
               legend.key.width =  unit(1, "cm"),
               legend.key.height =  unit(legend_spacing, "cm"),
               legend.key.size = unit(0.8, "cm"),  # Consistent key size
@@ -595,9 +639,9 @@ make_plots <- function(text_height, leg_x_pos, leg_y_pos,
         labs(x = "Age in years",
              y = "Proportion surviving",
              linetype = "",
-             color = ""),
-        guides(colour = guide_legend(nrow = 2),
-               linetype = guide_legend(override.aes = list(size = .5, n.dots = 5)))
+             color = "")#,
+        #guides(colour = guide_legend(nrow = 2),
+         #      linetype = guide_legend(override.aes = list(size = 1, n.dots = 2)))
     )
 
         A2 <- A +  theme(
@@ -657,6 +701,7 @@ who_grooms_bootstrap <- read_csv("./data/who_grooms_bootstrap_13SEP24.csv")
 Table3_data <- who_grooms_bootstrap %>%
     filter(is_dad & has_consort_data) %>%
     select(focal
+           , AMales
            , kid_age, mom_age, AMales_age
            , mean_ordrank
            , daily_d_days_rate
@@ -667,16 +712,15 @@ Table3_data <- who_grooms_bootstrap %>%
            , offspring_years
            , cumulative_adversity
            , observer_effort
-           , does_groom)
+           , does_groom
+           , nr_days
+           )
 
 Table3_data <- replace_names_with_ids(
     data = Table3_data,
     coded_names = coded_names,
-    columns = c("focal")
+    columns = c("focal", "AMales")
 )
-
-
-
 
 write_csv(Table3_data, "./data/Table3_data.csv")
 Table3_data <- read_csv("./data/Table3_data.csv")
@@ -732,7 +776,7 @@ Table4_data <- dad_overlap_only_know_data %>%
 Table4_data <- replace_names_with_ids(
     data = Table4_data,
     coded_names = coded_names,
-    columns = c("focal")
+    columns = c("focal", "dad")
 )
 
 write_csv(Table4_data, "./data/Table4_data.csv")
