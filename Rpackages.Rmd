@@ -5,6 +5,8 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(gdtools)
+library(flextable)
 ```
 
 This is an overview of all the packages used for the Early-life paternal relationships predict adult female survival in wild baboons paper.
