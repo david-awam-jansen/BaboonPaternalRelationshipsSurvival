@@ -35,5 +35,5 @@ This section provides an overview of all R packages used in the analysis.
 ## Notes
 
 - The code in this repository was created by David Jansen (Archie Lab, University of Notre Dame; Midwest Center of Excellence for Vector-Borne Disease, University of Wisconsin - Madison).
-- The code for the creation of the table with all R packages can be found [here](https://github.com/david-awam-jansen/BaboonPaternalRelationshipsSurvival/blob/main/Rpackages.md).
+- The code for the creation of the table with all R packages can be found [here](https://github.com/david-awam-jansen/BaboonPaternalRelationshipsSurvival/blob/main/docs/Rpackages.md).
 - For questions about the code or datasets, please reach out to David or Elizabeth.
