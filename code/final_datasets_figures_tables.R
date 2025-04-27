@@ -329,6 +329,12 @@ ggsave(plot = Fig1, filename = "./figures/Fig1.jpg", width = 8.5, dpi = 600)
 ## Table 1
 ## After review the data for this table changed
 ## Please see additional  analysis for details.
+juvenile_model_data <- who_grooms_bootstrap %>%
+    filter(focal %in% c(xdata_females_with_social$focal)) %>%
+    select(focal, focal_grp, paternal_res_i_adj_zscored, AMales,
+           is_dad, kid_age, nr_days) %>%
+    filter(nr_days >= 30)
+
 
 juvenile_model_values <- read_csv("./data/data_for_juvenile_model.csv") %>%
     inner_join(biograph_l %>%
@@ -394,6 +400,25 @@ AIC(juvenile_model
     as_tibble(rownames = "Model") %>%
     mutate(dAIC = AIC - AIC(juvenile_model))
 
+################################################################
+###############################################################
+## Table 1 (updated after review)
+## It was decided to do the analysis on a slighly different subset.
+
+juvenile_model_data <- who_grooms_bootstrap %>%
+    filter(focal %in% c(xdata_females_with_social$focal)) %>%
+    select(focal, focal_grp, paternal_res_i_adj_zscored, AMales,
+           is_dad, kid_age, nr_days) %>%
+    filter(nr_days >= 30)
+
+Table1_data <- replace_names_with_ids(
+    data = juvenile_model_data,
+    coded_names = coded_names,
+    columns = c("focal", "AMales")
+)
+
+write_csv(Table1_data, "./data/Table1_data_updated.csv")
+Table1_data <- read_csv("./data/Table1_data_updated.csv")
 ################################################################################
 ## Table 2
 ## Some of the data in Table2_data will also be used for Fig2

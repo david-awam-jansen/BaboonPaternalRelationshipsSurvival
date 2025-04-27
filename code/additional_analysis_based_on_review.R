@@ -34,11 +34,28 @@ lapply(packages, require, character.only = TRUE, warn.conflicts = TRUE,
 source('./code/3. functions_for_data_prep.R')
 
 ## Table 1 AIC values
-Table1_data <- read_csv("./data/Table1_data.csv")
+Table1_data <- read_csv("./data/Table1_data_updated.csv")
+## The data for Table 1 was updated after review
+## It is now more based on the bootstrapped dataset.
+juvenile_model_data <- read_csv("./data/Table1_data_updated.csv")
 
-juvenile_model <- Table1_data %>%
-    filter(str_detect(paternal_groom, "paternal")) %>%
-    lmer(formula = bond_strength ~ juvenile_age + is_dad + (1|juvenile_id))
+## sample sizes
+tribble(~variable, ~number,
+        "nr focal females", juvenile_model_data$focal %>% n_distinct(),
+        "nr males", juvenile_model_data$AMales %>% n_distinct(),
+        "nr dads", juvenile_model_data$AMales[juvenile_model_data$is_dad] %>% n_distinct(),
+        "nr groups", juvenile_model_data$focal_grp %>%  n_distinct(),
+        "nr focal years", juvenile_model_data %>%
+            select(focal, kid_age) %>%
+            n_distinct(),
+        "N", nrow(juvenile_model_data)) %>%
+    flextable::flextable() %>%
+    flextable::width(j = 1, 2)
+
+## run new model
+juvenile_model <- juvenile_model_data %>%
+    lmer(formula = paternal_res_i_adj_zscored ~
+             kid_age + is_dad + (1|focal))
 
 juvenile_model_results <- juvenile_model %>%
     broom.mixed::tidy() %>%
@@ -74,26 +91,58 @@ juvenile_model_table <- juvenile_model_results %>%
     flextable::width(j = 5, width= .7) %>%
     flextable::width(j = 7, width= 2)
 
+juvenile_model_table
+
 AIC(juvenile_model
-                  , update(juvenile_model, . ~ . - is_dad)
-                  , update(juvenile_model, . ~ . - juvenile_age)) %>%
+    , update(juvenile_model, . ~ . - is_dad)
+    , update(juvenile_model, . ~ . - kid_age)) %>%
     as_tibble(rownames = "Model") %>%
     mutate(dAIC = round(AIC - AIC(juvenile_model), 2)) %>%
     mutate(AIC = round(AIC, 2)) %>%
-    mutate(model = c(
-        "Paternal bond strength ~  1 + Age of juvenile + Is male the father",
-        "Paternal bond strength ~  1 + Age of juvenile",
-        "Paternal bond strength ~  1 + Is male the father")) %>%
+    mutate(model = c("Paternal bond strength ~  1 + Age of juvenile + Is male the father",
+                     "Paternal bond strength ~  1 + Age of juvenile",
+                     "Paternal bond strength ~  1 + Is male the father")) %>%
     select(model, AIC, dAIC) %>%
     flextable::flextable() %>%
-    flextable::colformat_double(j = 2:3,digits = 2,
-                                big.mark = "", decimal.mark = ".") %>%
+    flextable::colformat_double(j = 2:3,digits = 2, big.mark = "", decimal.mark = ".") %>%
     flextable::fontsize(size = 9, part = "all") %>%
     flextable::align(align = "left", part = "header") %>%
     #flextable::rotate(j = 2:5, rotation="btlr",part="header") %>%
     flextable::align(align = "left", part = "all") %>%
     flextable::width(j = 1, width= 6.5)
 
+## udated Fig S1
+juvenile_model_data %>%
+    select(is_dad, kid_age, contains("res")) %>%
+    mutate(age = round(kid_age)) %>%
+    mutate(age_class = case_when(age == 0 ~ "0-1",
+                                 age == 1 ~ "1-2",
+                                 age == 2 ~ "2-3",
+                                 age == 3 ~ "3-4"
+    )) %>%
+    mutate(is_dad  = if_else(is_dad, "DSI<sub>all</sub> between father-daughter dyads",
+                             "DSI<sub>all</sub> between juvenile female-non paternal male dyads")) %>%
+    ggplot(aes(x= age_class, y=paternal_res_i_adj_zscored,
+               fill = is_dad)) +
+    geom_point(pch = 21, size = 1.5,
+               position = position_jitterdodge(jitter.width = .25),
+               alpha = .8, color = "black", stroke = .2) +
+    geom_boxplot(outliers = FALSE, show.legend = FALSE) +
+    theme_cowplot(font_family = "Times New Roman") +
+    scale_color_manual(values = c("darkolivegreen3", "orange2")) +
+    scale_fill_manual(values = c("darkolivegreen3", "orange2")) +
+    guides(fill = guide_legend(override.aes = list(size = 4))) +
+    labs(x = "Female age class (in years)",
+         y = "DSI<sub>all</sub>",
+         fill = NULL, color = NULL) +
+    theme(axis.title.x = element_markdown(),
+          axis.title.y = element_markdown(),
+          legend.text = element_markdown(),
+          legend.position = "inside",
+          legend.position.inside = c(0.02, 0.93))
+
+
+ggsave("./figures/FigS1.jpg", width = 8.5, units = "in", dpi = 600)
 ##############################################################################
 ## Table 4
 Table4_data <- read_csv("./data/Table4_data.csv")
