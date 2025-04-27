@@ -1,21 +1,73 @@
-R packages
+R packages overview
 ================
 
-This is an overview of all the packages used for the Early-life paternal
-relationships predict adult female survival in wild baboons paper.
+# Early-life paternal relationships predict adult female survival in wild baboons
 
-The code in this repository was created by David Jansen
-
-Archie Lab; University of Notre Dame
-
-<david.awam.jansen@gmail.com>
-
-The corresponding author of the paper is Elizabeth Archie
-(<earchie@nd.edu>).
+> Code is created by David Jansen Archie Lab; University of Notre Dame
+> <david.awam.jansen@gmail.com>
 
 <img src="Rpackages_files/figure-gfm/unnamed-chunk-3-1.png" width="2066" />
 
 For your information the following code was used to load and/or install
 packages into R.
 
-And here is the code that was used to create the reference table.
+``` r
+packages <- c(
+    "broom", "broom.mixed", "cowplot", "dbplyr", "doSNOW", "extrafont", 
+    "flextable", "foreach", "ftExtra", "ggfortify", "ggtext", "grid", 
+    "kableExtra", "lmerTest", "MuMIn", "officer", "parallel", "patchwork", 
+    "purrr", "purrrlyr", "ramboseli", "rptR", "RPostgreSQL", "scales", 
+    "showtext", "survminer", "survMisc", "survival", "systemfonts", 
+    "tidyverse", "zoo"
+)
+
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+    install.packages(setdiff(packages, rownames(installed.packages())), dependencies = TRUE)
+}
+
+invisible(suppressMessages(devtools::install_github("amboseli/ramboseli")))
+
+lapply(packages, function(pkg) {
+  suppressWarnings(suppressMessages(require(pkg, character.only = TRUE)))
+})
+```
+
+``` r
+get_citation_text <- function(library) {
+    library %>%
+        citation() %>%
+        capture.output() %>%
+        as_tibble(.name_repair = "unique") %>%
+        filter(!str_starts(value, "To cite"),
+               !str_starts(value, "A BibTeX entry for LaTeX users is"),
+               !str_starts(value, "To see these entries in BibTeX format"),
+               !str_starts(value, "bibtex=TRUE")
+               ) %>%
+        pull(value) %>%
+        str_c(collapse = " ") %>%
+        str_remove("@Manual\\{.*") %>%
+        str_remove("@Article\\{.*") %>%
+        str_remove("R package version [^,]+,\\s*") %>%
+        str_remove("https?://CRAN\\.R-project\\.org/package=[^\\s]+") %>%
+        str_remove_all("‘.*options.*’") %>%
+        str_remove_all("options\\(citation\\.bibtex\\.max=999\\)") %>%
+        str_replace_all("_", "") %>%
+        str_squish() %>%
+        str_remove("<")  # remove any lingering
+}
+```
+
+``` r
+packages_ft <- tibble(library = packages) %>%
+    mutate(version = map(.x = library, .f = packageVersion)) %>%
+    mutate(reference = map_chr(.x = library, .f = get_citation_text)) %>%
+    unnest(cols = c(version)) %>%
+    mutate(version = as.character(version)) %>% 
+     flextable() %>%
+    flextable::width(j = 3, 8.5) %>%
+    ftExtra::colformat_md()
+
+packages_ft
+
+save_as_image(packages_ft, path = "packages_table.png")
+```
