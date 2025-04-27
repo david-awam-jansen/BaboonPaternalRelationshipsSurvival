@@ -1,0 +1,39 @@
+# Early-life paternal relationships predict adult female survival in wild baboons
+
+**Code created by:** David Jansen  
+Archie Lab, University of Notre Dame  
+<david.awam.jansen@gmail.com>
+
+The corresponding author of the paper is Elizabeth Archie  
+<earchie@nd.edu>
+
+---
+
+### Project Structure
+
+- All code files are located in the `code` folder.
+- File names are numbered and/or named according to the order of the analysis.
+
+The code relies heavily on data from the [Babase database](https://papio.biology.duke.edu/babasewiki/).  
+Access to Babase data requires permission — please contact the corresponding author.
+
+A selection of final datasets is publicly available at:  
+[https://zenodo.org/records/14590285](https://zenodo.org/records/14590285)  
+(*Note: Public data has been anonymized. The key to original names is available upon request.*)
+
+### R Packages Used
+
+This section provides an overview of all R packages used in the analysis.  
+
+![](docs/packages_table.png)
+
+<!-- RPACKAGES_START -->
+<!-- (The Rpackages.md content will be inserted here.) -->
+<!-- RPACKAGES_END -->
+
+
+## Notes
+
+- The code in this repository was created by David Jansen (Archie Lab, University of Notre Dame; Midwest Center of Excellence for Vector-Borne Disease, University of Wisconsin - Madison).
+- The code for the creation of the table with all R packages can be found here](https://github.com/david-awam-jansen/BaboonPaternalRelationshipsSurvival/blob/main/Rpackages.md).
+- For questions about the code or datasets, please reach out to David or Elizabeth.
