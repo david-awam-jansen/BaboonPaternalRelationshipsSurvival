@@ -5,7 +5,9 @@ R packages overview
 
 <img src="Rpackages_files/figure-gfm/unnamed-chunk-3-1.png" width="2066" />
 
-For your information the following code was used to load and/or install
+## Code for the table
+
+For your information, the following code was used to load and/or install
 packages into R.
 
 ``` r
