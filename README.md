@@ -47,3 +47,11 @@ The following R code was used to load or install required packages:
 - The code for the creation of the table with all R packages can be found here](https://github.com/david-awam-jansen/BaboonPaternalRelationshipsSurvival/blob/main/Rpackages.md).
 - For questions about the code or datasets, please reach out to David or Elizabeth.
 
+<<<<<<< HEAD
+=======
+A selection of the final datasets are publicly available at https://zenodo.org/records/14590285
+The data in the publicly available has been anonymized. The key to getting back to the original names is available up on request.
+
+# R packages
+This site was built using [GitHub Pages](https://github.com/david-awam-jansen/BaboonPaternalRelationshipsSurvival/blob/main/Rpackages.md).
+>>>>>>> 0ae5c8a90edffcc9965c5ed39e65eaa02b86ced9
