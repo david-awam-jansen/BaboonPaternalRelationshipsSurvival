@@ -25,7 +25,7 @@ A selection of final datasets is publicly available at:
 
 This section provides an overview of all R packages used in the analysis.  
 
-<img src="README_files/figure-gfm/unnamed-chunk-3-1.png" width="600" />
+![](docs/packages_table.png)
 
 <!-- RPACKAGES_START -->
 <!-- (The Rpackages.md content will be inserted here.) -->
