@@ -3,10 +3,6 @@ R packages overview
 
 # Early-life paternal relationships predict adult female survival in wild baboons
 
-**Code created by:** David Jansen  
-Archie Lab, University of Notre Dame  
-<david.awam.jansen@gmail.com>
-
 <img src="Rpackages_files/figure-gfm/unnamed-chunk-3-1.png" width="2066" />
 
 For your information the following code was used to load and/or install
