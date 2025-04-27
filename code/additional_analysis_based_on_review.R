@@ -355,6 +355,119 @@ dad_overlap_best_models_tibble %>%
 #############################################################################
 #############################################################################
 ## table S5
+
+sci <- read_csv("./data/Table_S2_data.csv")
+
+
+sciF_model <-
+    lmer(formula = "SCI_F ~ jDSI_paternal + age_class + mean_rank + (1|focal)",
+         na.action = "na.fail", data = sci)
+
+sciM_model <-
+    lmer(formula = "SCI_M ~ jDSI_paternal + age_class + mean_rank + (1|focal)",
+         na.action = "na.fail", data = sci)
+
+sciF_model_results <- sciF_model %>%
+    tidy()   %>%
+    mutate(term = case_when(term == "mean_rank" ~ "adult rank",
+                            term == "age_class" ~ "adult age",
+                            TRUE ~ term)) %>%
+    filter(effect == 'fixed') %>%
+    mutate(p.value = round(p.value, 3)) %>%
+    mutate(p.value = format.pval(p.value, eps = .001, digits = 2)) %>%
+    select(term, estimate, std.error, statistic, df, p.value) %>%
+    mutate(term = case_when(
+        term == "jDSI_paternal" ~ "Average grooming bond strength with father (in the juvenile period)",
+        term == "adult_age" ~ "Female age in a given year of adulthood ",
+        term == "adult_rank" ~ "Female dominance rank  in a given year of adulthood",
+        TRUE ~ term))  %>%
+    add_row(term = "Predictors of adult female social connectedness to other adult females",
+            .before = 1)
+
+sciM_model_results <- sciM_model %>%
+    tidy() %>%
+    filter(effect == 'fixed') %>%
+    mutate(p.value = round(p.value, 3)) %>%
+    mutate(p.value = format.pval(p.value, eps = .001, digits = 2)) %>%
+    select(term, estimate, std.error, statistic, df, p.value) %>%
+    mutate(term = case_when(
+        term == "jDSI_paternal" ~ "Average grooming bond strength with father (in the juvenile period)",
+        term == "age_class" ~ "Female age in a given year of adulthood ",
+        term == "mean_rank" ~ "Female dominance rank  in a given year of adulthood",
+        TRUE ~ term))   %>%
+    select(term, estimate, std.error, statistic, df, p.value) %>%
+    add_row(term = "Predictors of adult female social connectedness to adult males", .before = 1)
+
+sci_model <- bind_rows(sciF_model_results, sciM_model_results)
+names(sci_model)[2:6] <- c('\U03B2','\U03C3', 'r', 'df', 'p')
+
+sci_model %>%
+    rename(Term = term) %>%
+    flextable() %>%
+    merge_at(i = 1, j = NULL, part = "body") %>%
+    merge_at(i = 6, j = NULL, part = "body") %>%
+    bg(i = 1, bg = 'darkgrey') %>%
+    bg(i = 6, bg = 'darkgrey') %>%
+    colformat_double(digits = 2) %>%
+    fontsize(size = 9, part = "all") %>%
+    width(j = 1, width= 3) %>%
+    width(j = 2:6, width= .5) %>%
+    fontsize(size = 9, part = "all") %>%
+    #theme_vanilla() %>%
+    align(j = 1, align = "left") %>%
+    align(j = 2:6, align = "right") %>%
+    align(j = 2:6, align = "center", part = "header") %>%
+    align(i = c(1, 6), align = "center") %>%
+    autofit()
+
+
+get_sci_model_details <- function(model, deltaAIC=2) {
+    model_dregde <- dredge(model)
+    models <- get.models(model_dregde, subset = delta < 2000)
+
+    models %>%
+        tibble() %>%
+        rename(model = ".") %>%
+        mutate(results = map(.x = model, .f = tidy, conf.int = TRUE)) %>%
+        mutate(AICc = map(.x = model, .f = AICc)) %>%
+        mutate(model_nr = 1:n()) %>%
+        unnest(c(results, AICc)) %>%
+        filter(effect == "fixed",
+               term != "(Intercept)") %>%
+        select(-model, -effect, - group) %>%
+        mutate_if(is.numeric, round, digits = 3) %>%
+        arrange(AICc) %>%
+        mutate(dAICc = AICc - min(AICc)) %>%
+        mutate(AICc = round(AICc, 2),
+               dAICc = round(dAICc, 2)) %>%
+        mutate(stat_value =
+                   paste0(estimate, "\n (", conf.low," - ", conf.high,")")) %>%
+        mutate(term = case_when(
+            term == "mean_rank" ~ "Average female dominance rank in a given year of adulthood",
+            term == "age_class" ~ "Female age at the start of a given year of adulthood",
+            term == "jDSI_paternal" ~ "Mean DSIpaternal \n (in the juvenile period)")) %>%         select(model_nr, term, stat_value, AICc, dAICc) %>%
+        pivot_wider(names_from = term, values_from = stat_value) %>%
+        select(Model = model_nr,
+               "Mean DSIpaternal \n (in the juvenile period)",
+               "Female age at the start of a given year of adulthood",
+               "Average female dominance rank in a given year of adulthood",
+               AICc,
+               dAICc
+        ) %>%
+        filter(dAICc <= deltaAIC) %>%
+        flextable() %>%
+        width(j = 2:4, 1.5) %>%
+        align(j = 2:4, align = "center")
+}
+
+get_sci_model_details(sciF_model, deltaAIC = 2)
+
+get_sci_model_details(sciM_model, deltaAIC =10)
+
+
+#############################################################################
+#############################################################################
+## table S5
 who_grooms_only_known_model_prop_consort <-
     glmer(who_grooms_only_known_model_prop_consort_formula,
           data = temp_data_only_known
