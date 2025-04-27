@@ -12,3 +12,6 @@ To get access to the database contact the corresponding author.
 
 A selection of the final datasets are publicly available at https://zenodo.org/records/14590285
 The data in the publicly available has been anonymized. The key to getting back to the original names is available up on request.
+
+# R packages
+This site was built using [GitHub Pages](https://github.com/david-awam-jansen/BaboonPaternalRelationshipsSurvival/blob/main/Rpackages.md).
