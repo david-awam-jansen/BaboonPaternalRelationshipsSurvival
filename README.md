@@ -1,12 +1,13 @@
 # Early-life paternal relationships predict adult female survival in wild baboons
 
+Parent-offspring relationships can have profound effects on offspring behavior, health, and fitness in adulthood. These effects are strong when parents make heavy investments in offspring care. However, in some mammals, including several species of carnivores, rodents, and primates, fathers live and socialize with offspring, but paternal care per se is subtle or indirect. Do these limited father-offspring relationships also affect later-life outcomes for offspring? Working in a well-studied baboon population where males contribute little direct offspring care, we found that juvenile female baboons who had stronger paternal relationships, or who resided longer with their fathers, led adult lives that were 2-4 years longer than females with weak or short paternal relationships. This pattern did not differ between females who experienced high versus low levels of early-life adversity; hence, paternal relationships were equally protective in both harsh and benign early environments. Males’ relationships were strongest with juvenile females they were most likely to have sired and when males had few current mating opportunities. Hence, father-daughter relationships may be constrained by male mating effort. Because survival predicts female fitness, fathers and their daughters may experience selection to engage socially and stay close in daughters’ early lives.
+
 **Code created by:** David Jansen  
 Archie Lab, University of Notre Dame  
 <david.awam.jansen@gmail.com>
 
 The corresponding author of the paper is Elizabeth Archie  
 <earchie@nd.edu>
-
 ---
 
 ### Project Structure
