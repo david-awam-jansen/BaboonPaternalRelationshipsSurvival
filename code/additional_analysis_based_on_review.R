@@ -10,10 +10,13 @@
 ## There are some additional analysis, getting AIC values for some of tha analysis and an adaptation to some of the figures.
 
 
+
 packages <- c(
     "tidyverse",
     "showtext",
     "cowplot",
+    "extrafont",
+    "ggtext",
     "survival",
     "lmerTest",
     "broom",
@@ -24,6 +27,7 @@ packages <- c(
     "parallel"
 )
 
+
 ## install packages if needed and open libaries
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
     install.packages(setdiff(packages, rownames(installed.packages())), dependencies = TRUE)
@@ -32,6 +36,7 @@ lapply(packages, require, character.only = TRUE, warn.conflicts = TRUE,
        quietly = FALSE)
 
 source('./code/3. functions_for_data_prep.R')
+loadfonts(device = "win")
 
 ## Table 1 AIC values
 Table1_data <- read_csv("./data/Table1_data_updated.csv")
@@ -135,14 +140,30 @@ juvenile_model_data %>%
     labs(x = "Female age class (in years)",
          y = "DSI<sub>all</sub>",
          fill = NULL, color = NULL) +
-    theme(axis.title.x = element_markdown(),
+    theme(text = element_text(family = "Times New Roman", size = 11),
+        axis.title.x = element_markdown(),
           axis.title.y = element_markdown(),
-          legend.text = element_markdown(),
+          legend.text = element_markdown(family = "Times New Roman", size = 9),
           legend.position = "inside",
           legend.position.inside = c(0.02, 0.93))
 
 
-ggsave("./figures/FigS1.jpg", width = 8.5, units = "in", dpi = 600)
+ggsave("./figures/FigS1.jpg", width = 100, units = "mm", dpi = 600)
+##############################################################################
+##############################################################################
+xdata_females_with_social %>%
+    ggplot(aes(x= dad_overlap_years, y = jDSI_paternal)) +
+        geom_point() +
+        coord_cartesian(clip = "off") +
+        scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) +
+        labs(x = "Cumulative co-residency \n with father (years)",
+             y = "Grooming bond strength with father (DSI<sub>paternal</sub>)") +
+        theme_cowplot(font_size = 12, font_family = "Times New Roman") +
+        theme(axis.title.x = element_markdown(size = 11),
+              axis.title.y = element_markdown(size = 11))
+
+ggsave("./figures/FigS2.jpg", width = 80, units = "mm", dpi = 600)
+##############################################################################
 ##############################################################################
 ## Table 4
 Table4_data <- read_csv("./data/Table4_data.csv")
@@ -630,6 +651,163 @@ summary(who_grooms_best_models_model.avg)$coefmat.subset %>%
     colformat_double(digits = 3)
 ################################################################################
 ################################################################################
+Fig1A_data <- read_csv("./data/data_Fig1A.csv")
+Fig1B_data <- read_csv(file = "./data/data_Fig1B.csv") %>%
+    mutate(paternal_grooms = forcats::fct_relevel(paternal_grooms,
+                                                  "Grooming between juvenile females and their fathers",
+                                                  "Grooming between juvenile females and any adult male"))
+
+classes_Fig1A_data <- Fig1A_data %>%
+    mutate(class = ceiling(dad_overlap_years)) %>%
+    group_by(class) %>%
+    summarise(cases =n(), .groups = 'drop') %>%
+    mutate(class_max = cumsum(cases)) %>%
+    mutate(percentage = round(class_max/max(class_max) * 100,0))
+
+Fig1B_plot_data <-
+    tibble(juvenile = rep(unique(Fig1B_data$juvenile), each = 16),
+           age_class = rep(rep(unique(Fig1B_data$age_class),
+                               each = 4), times = 610),
+           paternal_grooms = rep(rep(unique(Fig1B_data$paternal_grooms), each = 2),
+                                 times = 610*4),
+           dyad_type = rep(unique(Fig1B_data$dyad_type), times = 610 * 4)) %>%
+    left_join(Fig1B_data) %>%
+    mutate(cases = if_else(is.na(cases), 0L, cases)) %>%
+    group_by(juvenile, age_class, paternal_grooms) %>%
+    mutate(total = sum(cases)) %>%
+    filter(total > 0) %>%
+    mutate(percentage = cases/sum(cases)) %>%
+    group_by(age_class, paternal_grooms, dyad_type) %>%
+    summarise(mean.value = mean(percentage, na.rm = TRUE),
+              sd.value = sd(percentage, na.rm = TRUE),
+              n.value = n(),
+              .groups = 'drop') %>%
+    mutate(se.value = sd.value/ sqrt(n.value),
+           lower.ci.value =
+               mean.value - qt(1 - (0.05 / 2), n.value - 1) * se.value,
+           upper.ci.value =
+               mean.value + qt(1 - (0.05 / 2), n.value - 1) * se.value) %>%
+    mutate(dyad_type = case_when(
+        dyad_type == "Any adult male grooms juv. female" ~ "Adult male grooms juvenile female",
+        dyad_type == "Juv. female grooms any adult male" ~ "Juvenile female grooms adult male",
+        dyad_type == "Daughter grooms father" ~ "Juvenile female  grooms father",
+        dyad_type == "Father grooms daughter" ~ "Father grooms juvenile female")) %>%
+    mutate(dyad_type = forcats::fct_relevel(dyad_type,
+                                            "Father grooms juvenile female",
+                                            "Juvenile female  grooms father",
+                                            "Adult male grooms juvenile female",
+                                            "Juvenile female grooms adult male"))
+Fig1A <- ggplot() +
+    geom_segment(data = Fig1A_data,
+                 aes(x = 0, xend= dad_overlap_years,
+                     y=focal_order,
+                     yend = focal_order),
+                 size = .2) +
+    labs(x = "Cumulative co-residency \n with father (years)",
+         y = "Juvenile female subjects") +
+    scale_x_continuous(expand = c(0, 0), limits = c(0, 4.1)) +
+    scale_y_continuous(breaks= classes_Fig1A_data$class_max,
+                       labels= paste0(classes_Fig1A_data$class_max, " (",
+                                      classes_Fig1A_data$percentage, '%)'),
+                       expand = c(0, 0), limits = c(0, 220)) +
+    geom_segment(data = classes_Fig1A_data,
+                 aes(x=class, xend = class,
+                     y = 0, yend = class_max),
+                 linetype = "dashed", color = "red", linewidth = 1) +
+    geom_segment(data = classes_Fig1A_data,
+                 aes(x=0, xend = class,
+                     y = class_max, yend = class_max),
+                 linetype = "dashed", color = "red", linewidth = 1) +
+    cowplot::theme_cowplot(font_family = "Times New Roman") +
+    theme(
+        text = element_text(family = "Times New Roman", size = 11)
+        , plot.title = element_text(size = 11, face = "bold", hjust = 0.5)
+        , axis.title = element_text(size = 11)
+        , axis.text = element_text(size = 11)
+        , legend.title = element_text(size = 11)
+        , legend.text = element_text(size =11)
+    )
+
+ggsave(plot = Fig1A, filename = "./figures/Fig1A.jpg", width = 80, dpi = 600, units = "mm")
+
+
+Fig1B <- Fig1B_plot_data %>%
+    mutate(paternal_grooms = case_when(
+        paternal_grooms ==  "Grooming between juvenile females and any adult male" ~
+            "Grooming between juvenile females \n and any adult male",
+        paternal_grooms == "Grooming between juvenile females and their fathers" ~
+            "Grooming between juvenile females \n and their fathers")) %>%
+    ggplot(aes(x=age_class,
+               y=mean.value,
+               group = dyad_type,
+               fill = dyad_type,
+               color = dyad_type)) +
+    geom_point(position=position_dodge(.5), size = 2) +
+    geom_errorbar(aes(ymin=lower.ci.value, ymax=upper.ci.value),
+                  position = position_dodge(.5), width = .4)	+
+    geom_line(linetype = 'dashed', size = .5, position = position_dodge(.5)) +
+    scale_x_discrete(expand = expansion(add = c(0.2, 0.2))) +
+    scale_y_continuous(labels = scales::percent, expand = c(0, 0.017)) +
+    facet_wrap(. ~ paternal_grooms, ncol = 1) +
+    scale_fill_manual(values = c("#2c7bb6", "#abd9e9",
+                                 "#d7191c", "#fdae61"),
+                      breaks = c("Father grooms juvenile female",
+                                 "Juvenile female  grooms father",
+                                 "Adult male grooms juvenile female",
+                                 "Juvenile female grooms adult male")) +
+    scale_color_manual(values = c("#2c7bb6", "#abd9e9",
+                                  "#d7191c", "#fdae61"),
+                       breaks = c("Father grooms juvenile female",
+                                  "Juvenile female  grooms father",
+                                  "Adult male grooms juvenile female",
+                                  "Juvenile female grooms adult male")) +
+    cowplot::theme_cowplot(font_family = "Times New Roman") +
+    guides(fill = 'none',
+           color = guide_legend(ncol = 1, size = 5)) +
+    labs(x= "Juvenile female age (years)",
+         y = "Proportions of grooming initiated",
+         color = "") +
+    theme(
+        text = element_text(family = "Times New Roman", size = 11),
+        plot.title = element_text(size = 11, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 11),
+        axis.text = element_text(size = 11),
+        legend.text = element_text(size = 11),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        strip.text.x = element_text(size = 11, angle = 0),
+
+        )
+
+
+ggsave(plot = Fig1B, filename = "./figures/Fig1B.jpg", width = 90, units = "mm", dpi = 600)
+
+## To create publication ready figures font sizes may have to be adapted
+##when using cowplot grid tehre are issues with overlapping plots
+## using patchwork instead
+## in patchwork setting the relevant height for 1 figure was hard
+## this was solved by using wrapped_elements, but then labels were an issue
+
+Fig1A <- Fig1A +
+    plot_annotation(tag_levels = list(c('(a)'))) +
+    theme(plot.tag = element_text(family = "Times New Roman", size = 11, hjust = 0, vjust = 0))
+
+Fig1B <- Fig1B +
+    plot_annotation(tag_levels = list(c('(b)'))) +
+    theme(plot.tag = element_text(family = "Times New Roman",
+                                  size = 11, hjust = 0, vjust = 0))
+
+wrapped_Fig1A <- wrap_elements(full = Fig1A)
+wrapped_Fig1B <- wrap_elements(full = Fig1B)
+
+# Combine side by side
+Fig1 <- wrapped_Fig1A + wrapped_Fig1B +
+    plot_layout(ncol = 2)
+
+ggsave(plot = Fig1, filename = "./figures/Fig1.jpg", width = 180, units = "mm", dpi = 600)
+
+###############################################################################
+###############################################################################
 ## Fig 2
 load("./data/Fig2.RData")
 xdata_females_with_social <- read_csv("./data/Table2_data.csv")
@@ -744,21 +922,25 @@ B <- surv_data_cumpat_long %>%
                       linetype = type),
                       size = .8) +
         cowplot::theme_cowplot(font_size = text_size, font_family = "Times New Roman") +
-        scale_color_manual(
-                values = c("green4", "green3", "green4", "green3"),
+            scale_color_manual(
+                values = c("green4", "green", "green4", "green"),
                 labels = c(
-                    expression(paste("High DSI"[paternal], " (low ELA)")),
-                    expression(paste("Low DSI"[paternal], " (high ELA)")),
-                    expression(paste("High DSI"[paternal], " (high ELA)")),
-                    expression(paste("Low DSI"[paternal], " (low ELA)"))
+                    expression(paste("High DSI"[paternal]," (low ELA)")),
+                    expression(paste("Low DSI"[paternal], " (low ELA)")),
+                    expression(paste("High DSI"[paternal]," (high ELA)")),
+                    expression(paste("Low DSI"[paternal], " (high ELA)" ))
+                    #expression(paste("")),
+                    #expression(paste(""))
                     )) +
         scale_linetype_manual(
                 values = c("solid", "solid", "dotted", "dotted"),
                 labels = c(
-                    expression(paste("High DSI"[paternal], " (low ELA)")),
-                    expression(paste("Low DSI"[paternal], " (high ELA)")),
+                    expression(paste("High DSI"[paternal]," (low ELA)")),
+                    expression(paste("Low DSI"[paternal], " (low ELA)")),
                     expression(paste("High DSI"[paternal], " (high ELA)")),
-                    expression(paste("Low DSI"[paternal], " (low ELA)"))
+                    expression(paste("Low DSI"[paternal], " (high ELA)" ))
+                    #expression(paste("")),
+                    #expression(paste(""))
                 ))
 
 ## cumulative adn dad overlap
@@ -774,12 +956,13 @@ C<-  surv_cumdpres_data_long %>%
             scale_linetype_manual(values = c("solid", "solid", "dotted", "dotted")) +
             cowplot::theme_cowplot(font_size = text_size, font_family = "Times New Roman")
 
+leg_y_pos = .25
 ## Most of the custom settings are done in the next part
 set_plot_layout <- list(
     scale_x_continuous(expand = c(0, 0), limits = c(0, 27)),
     scale_y_continuous(expand = c(0, 0), limits = c(0, 1)),
     cowplot::theme_cowplot(font_size = text_size),
-    theme(legend.text = element_text(size = text_size * 0.75),
+    theme(legend.text = element_text(size = text_size * 0.6),
           legend.position = c(leg_x_pos, leg_y_pos),
           legend.spacing = unit(0.7, "cm"),
           legend.spacing.y = unit(0.7, "cm"),
@@ -807,9 +990,9 @@ C2 <- C +
     labs(title = "Paternal co-residency")
 
 combined <- plot_grid(
-    plot_grid(A2 + theme(plot.margin = unit(c(-6, 0, -6, 0), "cm"))
+    plot_grid(A2 + theme(plot.margin = unit(c(-6, 0, -6, 6), "cm"))
               , NULL
-              , labels = c("A.")
+              , labels = c("(a)")
               , label_size = text_size
               , label_x = .04
               , label_y = .80
@@ -817,7 +1000,7 @@ combined <- plot_grid(
               , rel_widths = c(1,.1)
               ),
     plot_grid(B2,C2,
-              labels = c("B.", "C.")
+              labels = c("(b)", "(c)")
               , align = "v"
               , label_size = text_size
               , label_x = .1
